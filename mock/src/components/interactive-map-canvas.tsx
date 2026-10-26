@@ -101,6 +101,7 @@ export function InteractiveMapCanvas({
   const satelliteLayerRef = useRef<any>(null);
 
   // 控制状态：默认启用卫星或深蓝矢量，以及 3D 倾角
+  const [isMapReady, setIsMapReady] = useState(false);
   const [is3D, setIs3D] = useState(true);
   const [isSatellite, setIsSatellite] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(zoom);
@@ -119,6 +120,135 @@ export function InteractiveMapCanvas({
     () => localStorage.getItem('TOPSTAR_AMAP_SECURITY') || DEFAULT_AMAP_SECURITY
   );
 
+  // 核心：路灯点位与回路光缆渲染函数
+  const renderMarkersAndPolyline = () => {
+    const map = mapInstanceRef.current;
+    const AMap = aMapRef.current;
+    if (!map || !AMap) return;
+
+    // 清空现有 Marker
+    markersRef.current.forEach((m) => {
+      try {
+        m.setMap(null);
+        map.remove(m);
+      } catch (e) {}
+    });
+    markersRef.current = [];
+
+    // 清空现有回路 Polyline
+    if (polylineRef.current) {
+      try {
+        polylineRef.current.setMap(null);
+        map.remove(polylineRef.current);
+      } catch (e) {}
+      polylineRef.current = null;
+    }
+
+    const validPoints = points.filter((p) => p.lnglat && p.lnglat.length === 2);
+
+    // 绘制回路沿线光缆 (Polyline)
+    if (validPoints.length > 1) {
+      const path = validPoints.map((p) => new AMap.LngLat(p.lnglat![0], p.lnglat![1]));
+      const polyline = new AMap.Polyline({
+        path: path,
+        isOutline: true,
+        outlineColor: '#0369a1',
+        borderWeight: 2,
+        strokeColor: '#38bdf8',
+        strokeOpacity: 0.9,
+        strokeWeight: 4,
+        strokeStyle: 'solid',
+        lineJoin: 'round',
+        lineCap: 'round',
+        zIndex: 50,
+      });
+      map.add(polyline);
+      polylineRef.current = polyline;
+    }
+
+    // 绘制沿线灯杆 Marker
+    validPoints.forEach((point) => {
+      const isSelected = point.id === selectedPointId;
+      const markerDiv = document.createElement('div');
+      markerDiv.className = 'topstar-amap-marker group relative cursor-pointer select-none';
+      markerDiv.style.width = '36px';
+      markerDiv.style.height = '36px';
+      markerDiv.style.position = 'relative';
+
+      let bgClass = 'bg-brand-500/30 text-brand-300 border-brand-400';
+      let ringClass = 'bg-brand-400/50';
+      let icon = '📍';
+
+      if (point.status === 'deployed') {
+        bgClass = 'bg-emerald-500/35 text-emerald-300 border-emerald-400';
+        ringClass = 'bg-emerald-400/60';
+        icon = '💡';
+      } else if (point.status === 'dimmed') {
+        bgClass = 'bg-cyan-500/35 text-cyan-300 border-cyan-400';
+        ringClass = 'bg-cyan-400/60';
+        icon = '🔅';
+      } else if (point.status === 'warning') {
+        bgClass = 'bg-amber-500/35 text-amber-300 border-amber-400';
+        ringClass = 'bg-amber-400/70';
+        icon = '⚠️';
+      } else if (point.status === 'offline') {
+        bgClass = 'bg-rose-500/35 text-rose-300 border-rose-400';
+        ringClass = 'bg-rose-400/70';
+        icon = '🔌';
+      } else if (point.status === 'pending') {
+        bgClass = 'bg-slate-800/80 text-slate-300 border-slate-500 border-dashed';
+        ringClass = 'bg-slate-400/20';
+        icon = '➕';
+      }
+
+      markerDiv.innerHTML = `
+        <div class="relative flex items-center justify-center size-9">
+          <!-- 呼吸光环 -->
+          <div class="absolute inset-0 rounded-full ${ringClass} ${
+        isSelected || point.status === 'deployed' ? 'animate-ping' : ''
+      }"></div>
+          
+          <!-- 主图钉 -->
+          <div class="relative flex items-center justify-center size-8 rounded-full border-2 ${bgClass} shadow-2xl backdrop-blur transition-all duration-200 group-hover:scale-125 ${
+        isSelected ? 'ring-4 ring-brand-400 scale-125 shadow-[0_0_15px_rgba(56,189,248,0.9)]' : ''
+      }">
+            <span class="text-sm leading-none">${icon}</span>
+          </div>
+
+          <!-- 悬浮标签 -->
+          <div class="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-mono font-semibold shadow-lg pointer-events-none transition-all ${
+            isSelected
+              ? 'bg-brand-500 text-slate-950 scale-105 border border-brand-300'
+              : 'bg-slate-950/90 text-slate-200 border border-white/20'
+          }">
+            <span>${point.label}</span>
+            ${point.dimming !== undefined ? `<span class="ml-1 opacity-80 text-[9px]">${point.dimming}%</span>` : ''}
+          </div>
+        </div>
+      `;
+
+      markerDiv.onclick = (e) => {
+        e.stopPropagation();
+        onPointClick(point);
+      };
+
+      const marker = new AMap.Marker({
+        position: new AMap.LngLat(point.lnglat![0], point.lnglat![1]),
+        content: markerDiv,
+        offset: new AMap.Pixel(-18, -18),
+        title: point.label,
+        zIndex: isSelected ? 120 : 100,
+      });
+
+      map.add(marker);
+      markersRef.current.push(marker);
+    });
+
+    if (markersRef.current.length > 0) {
+      map.setFitView(markersRef.current, false, [70, 70, 70, 70], 16);
+    }
+  };
+
   // 1. 初始化高德地图 WebGL 2.0 实例
   useEffect(() => {
     let isMounted = true;
@@ -127,6 +257,8 @@ export function InteractiveMapCanvas({
     window._AMapSecurityConfig = {
       securityJsCode: customSecurity,
     };
+
+    setIsMapReady(false);
 
     AMapLoader.load({
       key: customKey,
@@ -154,6 +286,7 @@ export function InteractiveMapCanvas({
         });
 
         mapInstanceRef.current = map;
+        setIsMapReady(true);
 
         map.on('zoomchange', () => {
           setCurrentZoom(Math.round(map.getZoom()));
@@ -174,6 +307,7 @@ export function InteractiveMapCanvas({
 
     return () => {
       isMounted = false;
+      setIsMapReady(false);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.destroy();
         mapInstanceRef.current = null;
@@ -230,122 +364,10 @@ export function InteractiveMapCanvas({
 
   // 6. 渲染真实道路上的路灯 Marker 与 回路连线 Polyline，并自适应视野
   useEffect(() => {
-    if (!mapInstanceRef.current || !aMapRef.current) return;
-    const map = mapInstanceRef.current;
-    const AMap = aMapRef.current;
-
-    // 清空现有 Marker
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-
-    // 清空现有回路 Polyline
-    if (polylineRef.current) {
-      polylineRef.current.remove();
-      polylineRef.current = null;
+    if (isMapReady) {
+      renderMarkersAndPolyline();
     }
-
-    const validPoints = points.filter((p) => p.lnglat && p.lnglat.length === 2);
-
-    // 绘制回路沿线光缆 (Polyline)
-    if (validPoints.length > 1) {
-      const path = validPoints.map((p) => new AMap.LngLat(p.lnglat![0], p.lnglat![1]));
-      const polyline = new AMap.Polyline({
-        path: path,
-        isOutline: true,
-        outlineColor: '#0369a1',
-        borderWeight: 1,
-        strokeColor: '#38bdf8',
-        strokeOpacity: 0.85,
-        strokeWeight: 4,
-        strokeStyle: 'solid',
-        lineJoin: 'round',
-        lineCap: 'round',
-        zIndex: 50,
-      });
-      polyline.setMap(map);
-      polylineRef.current = polyline;
-    }
-
-    // 绘制沿线灯杆 Marker
-    validPoints.forEach((point) => {
-      const isSelected = point.id === selectedPointId;
-      const markerDiv = document.createElement('div');
-      markerDiv.className = 'topstar-amap-marker group relative cursor-pointer select-none';
-
-      let bgClass = 'bg-brand-500/25 text-brand-300 border-brand-400';
-      let ringClass = 'bg-brand-400/50';
-      let icon = '📍';
-
-      if (point.status === 'deployed') {
-        bgClass = 'bg-emerald-500/30 text-emerald-300 border-emerald-400';
-        ringClass = 'bg-emerald-400/60';
-        icon = '💡';
-      } else if (point.status === 'dimmed') {
-        bgClass = 'bg-cyan-500/30 text-cyan-300 border-cyan-400';
-        ringClass = 'bg-cyan-400/60';
-        icon = '🔅';
-      } else if (point.status === 'warning') {
-        bgClass = 'bg-amber-500/30 text-amber-300 border-amber-400';
-        ringClass = 'bg-amber-400/70';
-        icon = '⚠️';
-      } else if (point.status === 'offline') {
-        bgClass = 'bg-rose-500/30 text-rose-300 border-rose-400';
-        ringClass = 'bg-rose-400/70';
-        icon = '🔌';
-      } else if (point.status === 'pending') {
-        bgClass = 'bg-slate-800/80 text-slate-300 border-slate-500 border-dashed';
-        ringClass = 'bg-slate-400/20';
-        icon = '➕';
-      }
-
-      markerDiv.innerHTML = `
-        <div class="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
-          <!-- 呼吸光环 -->
-          <div class="absolute -inset-1.5 rounded-full ${ringClass} ${
-        isSelected || point.status === 'deployed' ? 'animate-ping' : ''
-      }"></div>
-          
-          <!-- 主图钉 -->
-          <div class="relative flex items-center justify-center size-8 rounded-full border-2 ${bgClass} shadow-2xl backdrop-blur transition-all duration-200 group-hover:scale-125 ${
-        isSelected ? 'ring-4 ring-brand-400 scale-125 shadow-[0_0_15px_rgba(56,189,248,0.8)]' : ''
-      }">
-            <span class="text-sm leading-none">${icon}</span>
-          </div>
-
-          <!-- 悬浮标签 -->
-          <div class="absolute -bottom-6 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-mono font-semibold shadow-lg pointer-events-none transition-all ${
-            isSelected
-              ? 'bg-brand-500 text-slate-950 scale-105 border border-brand-300'
-              : 'bg-slate-950/90 text-slate-200 border border-white/20'
-          }">
-            <span>${point.label}</span>
-            ${point.dimming !== undefined ? `<span class="ml-1 opacity-80 text-[9px]">${point.dimming}%</span>` : ''}
-          </div>
-        </div>
-      `;
-
-      markerDiv.onclick = (e) => {
-        e.stopPropagation();
-        onPointClick(point);
-      };
-
-      const marker = new AMap.Marker({
-        position: new AMap.LngLat(point.lnglat![0], point.lnglat![1]),
-        content: markerDiv,
-        offset: new AMap.Pixel(0, 0),
-        title: point.label,
-        zIndex: isSelected ? 120 : 100,
-      });
-
-      marker.setMap(map);
-      markersRef.current.push(marker);
-    });
-
-    // 关键：自适应视口将所有点位 100% 呈现在屏幕中央并保留舒适边距
-    if (markersRef.current.length > 0) {
-      map.setFitView(markersRef.current, false, [70, 70, 70, 70], 16);
-    }
-  }, [points, selectedPointId, onPointClick]);
+  }, [points, selectedPointId, isMapReady, onPointClick]);
 
   // 7. 监听场站中心切换平滑飞入
   useEffect(() => {
@@ -386,11 +408,7 @@ export function InteractiveMapCanvas({
   // 视角重置 (自适应全部点位)
   const handleReset = () => {
     if (mapInstanceRef.current) {
-      if (markersRef.current.length > 0) {
-        mapInstanceRef.current.setFitView(markersRef.current, false, [70, 70, 70, 70], 16);
-      } else if (centerLnglat) {
-        mapInstanceRef.current.setZoomAndCenter(zoom, centerLnglat, false, 500);
-      }
+      renderMarkersAndPolyline();
       mapInstanceRef.current.setPitch(is3D ? 35 : 0);
       toast.success('已自动居中校准路段全部点位视野');
     }
