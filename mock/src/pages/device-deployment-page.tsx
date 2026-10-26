@@ -42,29 +42,30 @@ interface PendingDevice {
   spec: string;
 }
 
-// 示范场站预设真实点位（高崎空港、翔安大桥、翔安新机场）
+// 示范场站预设真实点位（精准贴合高崎空港枋钟路、翔安大桥跨海高架、翔安新机场航站区道路中心线）
 const STATION_DEFAULT_POINTS: Record<string, MapPoint[]> = {
   '高崎空港互通示范站': [
-    { id: 'POLE-01', label: '高崎迎宾道 #01', lnglat: [118.1315, 24.5392], circuit: 'A 回路-迎宾段', pole: 'POLE-01', status: 'deployed', deviceId: 'DEV-0101', deviceName: '智能单灯控制器', deviceType: '单灯控制器' },
-    { id: 'POLE-02', label: '枋钟路立交 #02', lnglat: [118.1342, 24.5388], circuit: 'A 回路-迎宾段', pole: 'POLE-02', status: 'deployed', deviceId: 'DEV-0102', deviceName: '智能单灯控制器', deviceType: '单灯控制器' },
-    { id: 'POLE-03', label: 'T4航站匝道 #03', lnglat: [118.1378, 24.5381], circuit: 'B 回路-立交段', pole: 'POLE-03', status: 'deployed', deviceId: 'DEV-0103', deviceName: '边缘智能照明网关', deviceType: '智能网关' },
-    { id: 'POLE-04', label: '枋钟路中段 #04', lnglat: [118.1412, 24.5375], circuit: 'B 回路-立交段', pole: 'POLE-04', status: 'pending' },
-    { id: 'POLE-05', label: '环岛干线交汇 #05', lnglat: [118.1450, 24.5370], circuit: 'C 回路-外围段', pole: 'POLE-05', status: 'pending' },
-    { id: 'POLE-06', label: '翔安大桥引桥 #06', lnglat: [118.1495, 24.5365], circuit: 'C 回路-外围段', pole: 'POLE-06', status: 'pending' },
+    { id: 'POLE-01', label: 'T3航站迎宾道 #01', lnglat: [118.1280, 24.5388], circuit: 'A 回路-迎宾段', pole: 'POLE-01', status: 'deployed', deviceId: 'DEV-0101', deviceName: '智能单灯控制器', deviceType: '单灯控制器' },
+    { id: 'POLE-02', label: '枋钟立交主线 #02', lnglat: [118.1340, 24.5386], circuit: 'A 回路-迎宾段', pole: 'POLE-02', status: 'deployed', deviceId: 'DEV-0102', deviceName: '智能单灯控制器', deviceType: '单灯控制器' },
+    { id: 'POLE-03', label: 'T4航站连接匝道 #03', lnglat: [118.1400, 24.5382], circuit: 'B 回路-立交段', pole: 'POLE-03', status: 'deployed', deviceId: 'DEV-0103', deviceName: '边缘智能照明网关', deviceType: '智能网关' },
+    { id: 'POLE-04', label: '环岛干线北立交 #04', lnglat: [118.1460, 24.5376], circuit: 'B 回路-立交段', pole: 'POLE-04', status: 'pending' },
+    { id: 'POLE-05', label: '枋钟隧道入口 #05', lnglat: [118.1520, 24.5355], circuit: 'C 回路-外围段', pole: 'POLE-05', status: 'pending' },
+    { id: 'POLE-06', label: '大桥西引桥 #06', lnglat: [118.1565, 24.5332], circuit: 'C 回路-外围段', pole: 'POLE-06', status: 'pending' },
   ],
   '翔安大桥跨海示范段': [
-    { id: 'POLE-11', label: '翔安大桥西桥头 #01', lnglat: [118.1620, 24.5420], circuit: 'A 回路-跨海段', pole: 'POLE-11', status: 'deployed', deviceId: 'DEV-0111', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
-    { id: 'POLE-12', label: '刘五店航道桥 #02', lnglat: [118.1685, 24.5442], circuit: 'A 回路-跨海段', pole: 'POLE-12', status: 'deployed', deviceId: 'DEV-0112', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯' },
-    { id: 'POLE-13', label: '翔安大桥中段 #03', lnglat: [118.1735, 24.5458], circuit: 'B 回路-主航道', pole: 'POLE-13', status: 'deployed', deviceId: 'DEV-0113', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
-    { id: 'POLE-14', label: '翔安大桥东引桥 #04', lnglat: [118.1788, 24.5472], circuit: 'B 回路-主航道', pole: 'POLE-14', status: 'pending' },
-    { id: 'POLE-15', label: '翔安大桥东互通 #05', lnglat: [118.1850, 24.5490], circuit: 'C 回路-登陆段', pole: 'POLE-15', status: 'pending' },
+    { id: 'POLE-11', label: '西桥头本岛引桥 #01', lnglat: [118.1565, 24.5332], circuit: 'A 回路-跨海段', pole: 'POLE-11', status: 'deployed', deviceId: 'DEV-0111', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
+    { id: 'POLE-12', label: '环岛干线互通高架 #02', lnglat: [118.1632, 24.5385], circuit: 'A 回路-跨海段', pole: 'POLE-12', status: 'deployed', deviceId: 'DEV-0112', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯' },
+    { id: 'POLE-13', label: '跨海连续梁海中段 #03', lnglat: [118.1702, 24.5438], circuit: 'A 回路-跨海段', pole: 'POLE-13', status: 'deployed', deviceId: 'DEV-0113', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
+    { id: 'POLE-14', label: '刘五店主航道西塔 #04', lnglat: [118.1772, 24.5491], circuit: 'B 回路-主跨段', pole: 'POLE-14', status: 'deployed', deviceId: 'DEV-0114', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯' },
+    { id: 'POLE-15', label: '刘五店主航道东塔 #05', lnglat: [118.1842, 24.5544], circuit: 'B 回路-主跨段', pole: 'POLE-15', status: 'pending' },
+    { id: 'POLE-16', label: '翔安刘五店登陆段 #06', lnglat: [118.1912, 24.5597], circuit: 'B 回路-主跨段', pole: 'POLE-16', status: 'pending' },
   ],
   '翔安新机场综合枢纽站': [
-    { id: 'POLE-21', label: '新机场进场大道 #01', lnglat: [118.3510, 24.5460], circuit: 'A 回路-主进场', pole: 'POLE-21', status: 'deployed', deviceId: 'DEV-0601', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
-    { id: 'POLE-22', label: 'GTC 交通中心高架 #02', lnglat: [118.3552, 24.5445], circuit: 'A 回路-主进场', pole: 'POLE-22', status: 'deployed', deviceId: 'DEV-0602', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯' },
-    { id: 'POLE-23', label: '航站楼主落客区 #03', lnglat: [118.3590, 24.5428], circuit: 'B 回路-航站区', pole: 'POLE-23', status: 'deployed', deviceId: 'DEV-0603', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
-    { id: 'POLE-24', label: '空港保税环路 #04', lnglat: [118.3630, 24.5412], circuit: 'B 回路-航站区', pole: 'POLE-24', status: 'pending' },
-    { id: 'POLE-25', label: '大嶝环岛景观道 #05', lnglat: [118.3680, 24.5395], circuit: 'C 回路-环岛段', pole: 'POLE-25', status: 'pending' },
+    { id: 'POLE-21', label: '新机场进场快速路 #01', lnglat: [118.3480, 24.5470], circuit: 'A 回路-主进场', pole: 'POLE-21', status: 'deployed', deviceId: 'DEV-0601', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
+    { id: 'POLE-22', label: 'GTC综合交通中心 #02', lnglat: [118.3540, 24.5450], circuit: 'A 回路-主进场', pole: 'POLE-22', status: 'deployed', deviceId: 'DEV-0602', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯' },
+    { id: 'POLE-23', label: '航站楼高架落客平台 #03', lnglat: [118.3590, 24.5430], circuit: 'B 回路-航站区', pole: 'POLE-23', status: 'deployed', deviceId: 'DEV-0603', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
+    { id: 'POLE-24', label: '空港保税环线 #04', lnglat: [118.3645, 24.5410], circuit: 'B 回路-航站区', pole: 'POLE-24', status: 'pending' },
+    { id: 'POLE-25', label: '大嶝环海生态路 #05', lnglat: [118.3700, 24.5390], circuit: 'C 回路-环海段', pole: 'POLE-25', status: 'pending' },
   ],
 };
 

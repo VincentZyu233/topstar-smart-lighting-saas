@@ -26,27 +26,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { projects, stations } from '@/data/mock-data';
 import { cn } from '@/lib/utils';
 
-// 预置厦门示范路段监控点位（高崎空港、翔安大桥、翔安新机场）
+// 预置厦门示范路段监控点位（精准贴合高崎空港枋钟路、翔安大桥跨海高架、翔安新机场航站区真实道路走向）
 const STATION_MONITOR_POINTS: Record<string, MapPoint[]> = {
   '高崎空港互通示范站': [
-    { id: 'DEV-0101', label: 'DEV-0101 (高崎迎宾道01#)', lnglat: [118.1315, 24.5392], status: 'deployed', deviceId: 'DEV-0101', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-01', circuit: 'A 回路-迎宾段', power: 0.18, voltage: 220.4, temperature: 34.2, dimming: 85 },
-    { id: 'DEV-0102', label: 'DEV-0102 (枋钟路立交02#)', lnglat: [118.1342, 24.5388], status: 'deployed', deviceId: 'DEV-0102', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-02', circuit: 'A 回路-迎宾段', power: 0.18, voltage: 221.1, temperature: 35.0, dimming: 85 },
-    { id: 'DEV-0103', label: 'DEV-0103 (T4航站匝道03#)', lnglat: [118.1378, 24.5381], status: 'dimmed', deviceId: 'DEV-0103', deviceName: '边缘智能照明网关', deviceType: '智能网关', pole: 'POLE-03', circuit: 'B 回路-立交段', power: 0.12, voltage: 219.8, temperature: 38.6, dimming: 60 },
-    { id: 'DEV-0104', label: 'DEV-0104 (枋钟中段04#)', lnglat: [118.1412, 24.5375], status: 'warning', deviceId: 'DEV-0104', deviceName: '多回路驱动电源', deviceType: '驱动电源', pole: 'POLE-04', circuit: 'B 回路-立交段', power: 0.35, voltage: 228.6, temperature: 48.9, dimming: 100 },
-    { id: 'DEV-0105', label: 'DEV-0105 (环岛干线交汇05#)', lnglat: [118.1450, 24.5370], status: 'deployed', deviceId: 'DEV-0105', deviceName: '全光谱LED智慧路灯', deviceType: '智慧灯具', pole: 'POLE-05', circuit: 'C 回路-外围段', power: 0.15, voltage: 220.0, temperature: 33.5, dimming: 70 },
-    { id: 'DEV-0106', label: 'DEV-0106 (枋钟下穿06#)', lnglat: [118.1495, 24.5365], status: 'offline', deviceId: 'DEV-0106', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-06', circuit: 'C 回路-外围段', power: 0.0, voltage: 0.0, temperature: 22.0, dimming: 0 },
+    { id: 'DEV-0101', label: 'DEV-0101 (T3迎宾路01#)', lnglat: [118.1280, 24.5388], status: 'deployed', deviceId: 'DEV-0101', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-01', circuit: 'A 回路-迎宾段', power: 0.18, voltage: 220.4, temperature: 34.2, dimming: 85 },
+    { id: 'DEV-0102', label: 'DEV-0102 (枋钟立交02#)', lnglat: [118.1340, 24.5386], status: 'deployed', deviceId: 'DEV-0102', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-02', circuit: 'A 回路-迎宾段', power: 0.18, voltage: 221.1, temperature: 35.0, dimming: 85 },
+    { id: 'DEV-0103', label: 'DEV-0103 (T4匝道03#)', lnglat: [118.1400, 24.5382], status: 'dimmed', deviceId: 'DEV-0103', deviceName: '边缘智能照明网关', deviceType: '智能网关', pole: 'POLE-03', circuit: 'B 回路-立交段', power: 0.12, voltage: 219.8, temperature: 38.6, dimming: 60 },
+    { id: 'DEV-0104', label: 'DEV-0104 (环岛北立交04#)', lnglat: [118.1460, 24.5376], status: 'warning', deviceId: 'DEV-0104', deviceName: '多回路驱动电源', deviceType: '驱动电源', pole: 'POLE-04', circuit: 'B 回路-立交段', power: 0.35, voltage: 228.6, temperature: 48.9, dimming: 100 },
+    { id: 'DEV-0105', label: 'DEV-0105 (枋钟隧道口05#)', lnglat: [118.1520, 24.5355], status: 'deployed', deviceId: 'DEV-0105', deviceName: '全光谱LED智慧路灯', deviceType: '智慧灯具', pole: 'POLE-05', circuit: 'C 回路-外围段', power: 0.15, voltage: 220.0, temperature: 33.5, dimming: 70 },
+    { id: 'DEV-0106', label: 'DEV-0106 (大桥西引桥06#)', lnglat: [118.1565, 24.5332], status: 'offline', deviceId: 'DEV-0106', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-06', circuit: 'C 回路-外围段', power: 0.0, voltage: 0.0, temperature: 22.0, dimming: 0 },
   ],
   '翔安大桥跨海示范段': [
-    { id: 'DEV-0111', label: 'DEV-0111 (西桥头01#)', lnglat: [118.1620, 24.5420], status: 'deployed', deviceId: 'DEV-0111', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-11', circuit: 'A 回路-跨海段', power: 0.22, voltage: 222.0, temperature: 33.1, dimming: 95 },
-    { id: 'DEV-0112', label: 'DEV-0112 (刘五店航道桥02#)', lnglat: [118.1685, 24.5442], status: 'deployed', deviceId: 'DEV-0112', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯', pole: 'POLE-12', circuit: 'A 回路-跨海段', power: 0.20, voltage: 221.4, temperature: 34.5, dimming: 90 },
-    { id: 'DEV-0113', label: 'DEV-0113 (大桥中段03#)', lnglat: [118.1735, 24.5458], status: 'dimmed', deviceId: 'DEV-0113', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-13', circuit: 'B 回路-主航道', power: 0.14, voltage: 220.8, temperature: 35.0, dimming: 65 },
-    { id: 'DEV-0114', label: 'DEV-0114 (东引桥04#)', lnglat: [118.1788, 24.5472], status: 'deployed', deviceId: 'DEV-0114', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-14', circuit: 'B 回路-主航道', power: 0.18, voltage: 221.2, temperature: 33.8, dimming: 85 },
+    { id: 'DEV-0111', label: 'DEV-0111 (西桥头引桥01#)', lnglat: [118.1565, 24.5332], status: 'deployed', deviceId: 'DEV-0111', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-11', circuit: 'A 回路-跨海段', power: 0.22, voltage: 222.0, temperature: 33.1, dimming: 95 },
+    { id: 'DEV-0112', label: 'DEV-0112 (环岛立交高架02#)', lnglat: [118.1632, 24.5385], status: 'deployed', deviceId: 'DEV-0112', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯', pole: 'POLE-12', circuit: 'A 回路-跨海段', power: 0.20, voltage: 221.4, temperature: 34.5, dimming: 90 },
+    { id: 'DEV-0113', label: 'DEV-0113 (跨海连续梁03#)', lnglat: [118.1702, 24.5438], status: 'dimmed', deviceId: 'DEV-0113', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-13', circuit: 'A 回路-跨海段', power: 0.14, voltage: 220.8, temperature: 35.0, dimming: 65 },
+    { id: 'DEV-0114', label: 'DEV-0114 (主航道西塔04#)', lnglat: [118.1772, 24.5491], status: 'deployed', deviceId: 'DEV-0114', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯', pole: 'POLE-14', circuit: 'B 回路-主跨段', power: 0.18, voltage: 221.2, temperature: 33.8, dimming: 85 },
+    { id: 'DEV-0115', label: 'DEV-0115 (主航道东塔05#)', lnglat: [118.1842, 24.5544], status: 'deployed', deviceId: 'DEV-0115', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯', pole: 'POLE-15', circuit: 'B 回路-主跨段', power: 0.19, voltage: 221.5, temperature: 34.0, dimming: 85 },
+    { id: 'DEV-0116', label: 'DEV-0116 (翔安登陆段06#)', lnglat: [118.1912, 24.5597], status: 'deployed', deviceId: 'DEV-0116', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-16', circuit: 'B 回路-主跨段', power: 0.20, voltage: 222.0, temperature: 33.5, dimming: 90 },
   ],
   '翔安新机场综合枢纽站': [
-    { id: 'DEV-0601', label: 'DEV-0601 (新机场进场01#)', lnglat: [118.3510, 24.5460], status: 'deployed', deviceId: 'DEV-0601', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-21', circuit: 'A 回路-主进场', power: 0.19, voltage: 222.4, temperature: 34.9, dimming: 88 },
-    { id: 'DEV-0602', label: 'DEV-0602 (GTC交通中心02#)', lnglat: [118.3552, 24.5445], status: 'deployed', deviceId: 'DEV-0602', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯', pole: 'POLE-22', circuit: 'A 回路-主进场', power: 0.17, voltage: 221.7, temperature: 36.1, dimming: 82 },
-    { id: 'DEV-0603', label: 'DEV-0603 (航站楼主落客03#)', lnglat: [118.3590, 24.5428], status: 'deployed', deviceId: 'DEV-0603', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-23', circuit: 'B 回路-航站区', power: 0.21, voltage: 223.1, temperature: 33.8, dimming: 90 },
-    { id: 'DEV-0604', label: 'DEV-0604 (空港保税环路04#)', lnglat: [118.3630, 24.5412], status: 'dimmed', deviceId: 'DEV-0604', deviceName: '景观氛围灯杆', deviceType: '景观氛围灯杆', pole: 'POLE-24', circuit: 'B 回路-航站区', power: 0.11, voltage: 220.5, temperature: 32.0, dimming: 50 },
+    { id: 'DEV-0601', label: 'DEV-0601 (新机场快速路01#)', lnglat: [118.3480, 24.5470], status: 'deployed', deviceId: 'DEV-0601', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-21', circuit: 'A 回路-主进场', power: 0.19, voltage: 222.4, temperature: 34.9, dimming: 88 },
+    { id: 'DEV-0602', label: 'DEV-0602 (GTC交通中心02#)', lnglat: [118.3540, 24.5450], status: 'deployed', deviceId: 'DEV-0602', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯', pole: 'POLE-22', circuit: 'A 回路-主进场', power: 0.17, voltage: 221.7, temperature: 36.1, dimming: 82 },
+    { id: 'DEV-0603', label: 'DEV-0603 (航站楼落客平台03#)', lnglat: [118.3590, 24.5430], status: 'deployed', deviceId: 'DEV-0603', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-23', circuit: 'B 回路-航站区', power: 0.21, voltage: 223.1, temperature: 33.8, dimming: 90 },
+    { id: 'DEV-0604', label: 'DEV-0604 (空港保税环线04#)', lnglat: [118.3645, 24.5410], status: 'dimmed', deviceId: 'DEV-0604', deviceName: '景观氛围灯杆', deviceType: '景观氛围灯杆', pole: 'POLE-24', circuit: 'B 回路-航站区', power: 0.11, voltage: 220.5, temperature: 32.0, dimming: 50 },
+    { id: 'DEV-0605', label: 'DEV-0605 (大嶝环海生态路05#)', lnglat: [118.3700, 24.5390], status: 'deployed', deviceId: 'DEV-0605', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-25', circuit: 'C 回路-环海段', power: 0.16, voltage: 221.0, temperature: 33.0, dimming: 75 },
   ],
 };
 
