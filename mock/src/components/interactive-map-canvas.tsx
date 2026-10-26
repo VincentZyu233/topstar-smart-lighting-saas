@@ -140,59 +140,52 @@ export function InteractiveMapCanvas({
     validPoints.forEach((point) => {
       const isSelected = point.id === selectedPointId;
       const markerDiv = document.createElement('div');
-      markerDiv.className = 'topstar-amap-marker group relative cursor-pointer select-none';
-      markerDiv.style.width = '36px';
-      markerDiv.style.height = '36px';
+      markerDiv.className = 'topstar-amap-marker group relative cursor-pointer select-none flex items-center justify-center';
+      markerDiv.style.width = '24px';
+      markerDiv.style.height = '24px';
       markerDiv.style.position = 'relative';
 
-      let bgClass = 'bg-brand-500/30 text-brand-300 border-brand-400';
-      let ringClass = 'bg-brand-400/50';
-      let icon = '📍';
+      let dotClass = 'bg-brand-400 border border-brand-200 shadow-[0_0_8px_rgba(56,189,248,0.85)]';
+      let centerDot = 'bg-white';
+      let innerText = '';
 
       if (point.status === 'deployed') {
-        bgClass = 'bg-emerald-500/35 text-emerald-300 border-emerald-400';
-        ringClass = 'bg-emerald-400/60';
-        icon = '💡';
+        dotClass = 'bg-emerald-400 border border-emerald-200 shadow-[0_0_8px_rgba(52,211,153,0.9)]';
+        centerDot = 'bg-emerald-100';
       } else if (point.status === 'dimmed') {
-        bgClass = 'bg-cyan-500/35 text-cyan-300 border-cyan-400';
-        ringClass = 'bg-cyan-400/60';
-        icon = '🔅';
+        dotClass = 'bg-cyan-400 border border-cyan-200 shadow-[0_0_8px_rgba(34,211,238,0.9)]';
+        centerDot = 'bg-cyan-100';
       } else if (point.status === 'warning') {
-        bgClass = 'bg-amber-500/35 text-amber-300 border-amber-400';
-        ringClass = 'bg-amber-400/70';
-        icon = '⚠️';
+        dotClass = 'bg-amber-400 border border-amber-200 shadow-[0_0_10px_rgba(251,191,36,0.95)]';
+        centerDot = 'bg-amber-100';
       } else if (point.status === 'offline') {
-        bgClass = 'bg-rose-500/35 text-rose-300 border-rose-400';
-        ringClass = 'bg-rose-400/70';
-        icon = '🔌';
+        dotClass = 'bg-rose-500 border border-rose-300 shadow-[0_0_6px_rgba(244,63,94,0.7)]';
+        centerDot = 'bg-rose-200';
       } else if (point.status === 'pending') {
-        bgClass = 'bg-slate-800/80 text-slate-300 border-slate-500 border-dashed';
-        ringClass = 'bg-slate-400/20';
-        icon = '➕';
+        dotClass = 'bg-slate-900/90 border-2 border-dashed border-slate-400 text-slate-300 shadow-sm';
+        centerDot = 'hidden';
+        innerText = '+';
       }
 
+      // 悬浮标签：默认完全隐藏不显示，只有在鼠标 hover 或选中时才浮现
+      const tagClass = isSelected
+        ? 'opacity-100 visible z-50 bg-brand-500 text-slate-950 font-bold border border-brand-300 scale-105 shadow-xl'
+        : 'opacity-0 invisible pointer-events-none group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 group-hover:z-50 bg-slate-950/95 text-slate-100 border border-white/25 shadow-lg';
+
       markerDiv.innerHTML = `
-        <div class="relative flex items-center justify-center size-9">
-          <!-- 呼吸光环 -->
-          <div class="absolute inset-0 rounded-full ${ringClass} ${
-        isSelected || point.status === 'deployed' ? 'animate-ping' : ''
-      }"></div>
-          
-          <!-- 主图钉 -->
-          <div class="relative flex items-center justify-center size-8 rounded-full border-2 ${bgClass} shadow-2xl backdrop-blur transition-all duration-200 group-hover:scale-125 ${
-        isSelected ? 'ring-4 ring-brand-400 scale-125 shadow-[0_0_15px_rgba(56,189,248,0.9)]' : ''
-      }">
-        <span class="text-sm leading-none">${icon}</span>
+        <div class="relative flex items-center justify-center size-6">
+          <!-- 微型精巧发光灯标 (彻底移除波纹发光动画，小巧静美) -->
+          <div class="relative flex items-center justify-center size-3.5 rounded-full ${dotClass} transition-all duration-200 group-hover:scale-130 ${
+            isSelected ? 'ring-3 ring-brand-400 scale-135 shadow-[0_0_16px_rgba(56,189,248,1)]' : ''
+          }">
+            <span class="size-1 rounded-full ${centerDot}"></span>
+            ${innerText ? `<span class="text-[9px] font-bold leading-none text-slate-300">${innerText}</span>` : ''}
           </div>
 
-          <!-- 悬浮标签 -->
-          <div class="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-mono font-semibold shadow-lg pointer-events-none transition-all ${
-            isSelected
-              ? 'bg-brand-500 text-slate-950 scale-105 border border-brand-300'
-              : 'bg-slate-950/90 text-slate-200 border border-white/20'
-          }">
+          <!-- 悬浮标签：默认不显示，鼠标悬浮或点击选中时才浮现 -->
+          <div class="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-mono font-medium transition-all duration-150 ${tagClass}">
             <span>${point.label}</span>
-            ${point.dimming !== undefined ? `<span class="ml-1 opacity-80 text-[9px]">${point.dimming}%</span>` : ''}
+            ${point.dimming !== undefined ? `<span class="ml-1 opacity-85 text-[9px] font-bold">${point.dimming}%</span>` : ''}
           </div>
         </div>
       `;
@@ -205,10 +198,13 @@ export function InteractiveMapCanvas({
       const marker = new AMap.Marker({
         position: new AMap.LngLat(point.lnglat![0], point.lnglat![1]),
         content: markerDiv,
-        offset: new AMap.Pixel(-18, -18),
+        offset: new AMap.Pixel(-12, -12),
         title: point.label,
-        zIndex: isSelected ? 120 : 100,
+        zIndex: isSelected ? 120 : 80,
       });
+
+      markerDiv.onmouseenter = () => marker.setzIndex(150);
+      markerDiv.onmouseleave = () => marker.setzIndex(isSelected ? 120 : 80);
 
       map.add(marker);
       markersRef.current.push(marker);

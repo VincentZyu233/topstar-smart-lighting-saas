@@ -274,51 +274,7 @@ export function RealtimeMonitorPage() {
               zoom={16.5}
               onPointClick={handleSelectPoint}
               className="h-full min-h-[480px]"
-              renderPointContent={(point, isSelected) => {
-                const isWarning = point.status === 'warning';
-                const isOffline = point.status === 'offline';
-                return (
-                  <div className="relative flex items-center justify-center">
-                    {/* 告警红色呼吸光环 */}
-                    {isWarning && (
-                      <span className="absolute size-10 rounded-full bg-rose-500/40 animate-ping" />
-                    )}
-                    {point.status === 'deployed' && (
-                      <span className="absolute size-7 rounded-full bg-emerald-400/20 animate-pulse" />
-                    )}
-
-                    <div
-                      className={cn(
-                        'flex size-8 items-center justify-center rounded-full border-2 transition-all duration-200 group-hover:scale-125 shadow-lg',
-                        isSelected ? 'scale-125 ring-4 ring-brand-400' : '',
-                        isWarning
-                          ? 'border-rose-400 bg-rose-600 text-white shadow-rose-500/60'
-                          : isOffline
-                          ? 'border-slate-500 bg-slate-700 text-slate-300'
-                          : point.status === 'dimmed'
-                          ? 'border-amber-300 bg-amber-500 text-slate-950'
-                          : 'border-emerald-300 bg-emerald-600 text-white shadow-emerald-500/40'
-                      )}
-                    >
-                      <Lightbulb className="size-4" />
-                    </div>
-
-                    {/* 浮动节点文字 */}
-                    <div
-                      className={cn(
-                        'absolute left-1/2 top-9 -translate-x-1/2 whitespace-nowrap rounded-md border px-2 py-0.5 text-[9px] font-mono shadow-md backdrop-blur',
-                        isSelected
-                          ? 'border-brand-400 bg-brand-950 text-brand-200 font-bold'
-                          : 'border-white/10 bg-slate-900/90 text-slate-200'
-                      )}
-                    >
-                      <span>{point.id}</span>
-                      <span className="ml-1 opacity-70">{point.dimming}%</span>
-                    </div>
-                  </div>
-                );
-              }}
-              legend={
+                            legend={
                 <div className="rounded-xl border border-white/10 bg-slate-900/85 p-2.5 text-[10px] text-slate-300 backdrop-blur space-y-1 shadow-xl">
                   <div className="font-semibold text-white mb-1 flex items-center gap-1">
                     <Layers className="size-3 text-brand-400" />工况图例
