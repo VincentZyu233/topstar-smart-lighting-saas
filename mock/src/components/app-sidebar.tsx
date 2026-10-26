@@ -121,11 +121,17 @@ export function AppSidebar({ session, onLogout }: { session: AuthSession; onLogo
                           active && 'bg-brand-500/20 text-brand-300 font-medium',
                         )}
                       >
-                        <Icon className="size-4" />
-                        <span>{item.label}</span>
+                        <Icon className="size-4 shrink-0" />
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          <span className="truncate">{item.label}</span>
+                          {item.badge && (
+                            <span className="rounded-full bg-brand-500/20 border border-brand-400/30 px-1.5 py-0.2 font-mono text-[9px] text-brand-200">
+                              {item.badge}
+                            </span>
+                          )}
+                        </span>
                         <ChevronDown className={cn('ml-auto size-3.5 transition-transform duration-200 group-data-[collapsible=icon]:hidden', expanded && 'rotate-180')} />
                       </SidebarMenuButton>
-                      {item.badge && <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>}
                       <div
                         className={cn(
                           'grid transition-all duration-200 ease-in-out group-data-[collapsible=icon]:hidden',

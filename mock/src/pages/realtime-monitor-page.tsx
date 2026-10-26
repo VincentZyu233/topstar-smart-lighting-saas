@@ -1,76 +1,367 @@
 import { useMemo, useState } from 'react';
-import { Activity, BatteryCharging, Cpu, RefreshCw, Search, Thermometer, Wifi, Zap } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  BatteryCharging,
+  Cpu,
+  Layers,
+  Lightbulb,
+  Radio,
+  RefreshCw,
+  Search,
+  Sliders,
+  Sparkles,
+  Thermometer,
+  Wifi,
+  Zap,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { LineTrendChart } from '@/components/charts';
+import { InteractiveMapCanvas, type MapPoint } from '@/components/interactive-map-canvas';
 import { MetricBar, PageHeader, SectionCard, StatCard, StatusBadge } from '@/components/shared';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { devices } from '@/data/mock-data';
+import { projects, stations } from '@/data/mock-data';
+import { cn } from '@/lib/utils';
+
+// 监控路段的灯杆点位列表（包含正常亮灯、调光中、告警异常和离线状态）
+const MONITOR_POINTS: MapPoint[] = [
+  { id: 'DEV-0101', label: 'POLE-01 (环岛路K1+100)', x: 12, y: 35, status: 'deployed', deviceId: 'DEV-0101', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-01', circuit: 'A 回路-东段', power: 0.18, voltage: 220.4, temperature: 34.2, dimming: 85 },
+  { id: 'DEV-0102', label: 'POLE-02 (环岛路K1+250)', x: 26, y: 32, status: 'deployed', deviceId: 'DEV-0102', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-02', circuit: 'A 回路-东段', power: 0.18, voltage: 221.1, temperature: 35.0, dimming: 85 },
+  { id: 'DEV-0103', label: 'POLE-03 (环岛路K1+400)', x: 40, y: 41, status: 'dimmed', deviceId: 'DEV-0103', deviceName: '边缘智能照明网关', deviceType: '智能网关', pole: 'POLE-03', circuit: 'B 回路-中段', power: 0.12, voltage: 219.8, temperature: 38.6, dimming: 60 },
+  { id: 'DEV-0104', label: 'POLE-04 (环岛路K1+550)', x: 55, y: 49, status: 'warning', deviceId: 'DEV-0104', deviceName: '多回路驱动电源', deviceType: '驱动电源', pole: 'POLE-04', circuit: 'B 回路-中段', power: 0.35, voltage: 228.6, temperature: 48.9, dimming: 100 },
+  { id: 'DEV-0105', label: 'POLE-05 (环岛路K1+700)', x: 69, y: 43, status: 'deployed', deviceId: 'DEV-0105', deviceName: '全光谱LED智慧路灯', deviceType: '智慧灯具', pole: 'POLE-05', circuit: 'C 回路-西段', power: 0.15, voltage: 220.0, temperature: 33.5, dimming: 70 },
+  { id: 'DEV-0106', label: 'POLE-06 (环岛路K1+850)', x: 83, y: 56, status: 'offline', deviceId: 'DEV-0106', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-06', circuit: 'C 回路-西段', power: 0.0, voltage: 0.0, temperature: 22.0, dimming: 0 },
+];
 
 export function RealtimeMonitorPage() {
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState('all');
-  const filtered = useMemo(() => devices.filter((device) => {
-    const matchesQuery = !query || `${device.id}${device.name}${device.station}`.toLowerCase().includes(query.toLowerCase());
-    return matchesQuery && (status === 'all' || device.status === status);
-  }), [query, status]);
-  const selected = filtered[0] ?? devices[0];
-  const telemetry = [36, 35, 37, 38, 36, 35, 37, 39, 38, 36, 37, 36].map((value, index) => ({ label: `${index * 5}m`, value }));
+  const [selectedProject, setSelectedProject] = useState(projects[0]?.name ?? '厦门智慧照明示范项目');
+  const projectStations = useMemo(() => stations.filter((st) => st.project === selectedProject), [selectedProject]);
+  const [selectedStation, setSelectedStation] = useState(projectStations[0]?.name ?? '环岛南路示范段');
+
+  const [points, setPoints] = useState<MapPoint[]>(MONITOR_POINTS);
+  const [selectedPointId, setSelectedPointId] = useState<string>(MONITOR_POINTS[0].id);
+
+  // 选中的灯杆设备
+  const activePoint = useMemo(() => {
+    return points.find((p) => p.id === selectedPointId) ?? points[0];
+  }, [points, selectedPointId]);
+
+  // 当前调光滑块状态
+  const [dimmingValue, setDimmingValue] = useState<number>(activePoint.dimming ?? 85);
+
+  // 监听选中节点切换
+  const handleSelectPoint = (point: MapPoint) => {
+    setSelectedPointId(point.id);
+    setDimmingValue(point.dimming ?? 85);
+  };
+
+  // 下发调光指令
+  const handleApplyDimming = () => {
+    setPoints((prev) =>
+      prev.map((p) => (p.id === activePoint.id ? { ...p, dimming: dimmingValue, status: dimmingValue > 0 ? (dimmingValue < 70 ? 'dimmed' : 'deployed') : 'offline' } : p))
+    );
+    toast.success(`调光指令已下发！设备 [${activePoint.id}] 目标亮度调整为 ${dimmingValue}%`);
+  };
+
+  // 刷新遥测
+  const handleRefresh = () => {
+    toast.success('全网遥测数据已成功同步！');
+  };
+
+  // 生成折线图模拟遥测波形
+  const telemetryData = useMemo(() => {
+    const basePower = (activePoint.power ?? 0.18) * 100;
+    return [
+      { label: '10:00', value: Math.round(basePower * 0.95) },
+      { label: '10:10', value: Math.round(basePower * 0.98) },
+      { label: '10:20', value: Math.round(basePower * 1.02) },
+      { label: '10:30', value: Math.round(basePower * 1.0) },
+      { label: '10:40', value: Math.round(basePower * 0.96) },
+      { label: '10:50', value: Math.round(basePower * 1.04) },
+      { label: '11:00', value: Math.round(basePower * 1.01) },
+    ];
+  }, [activePoint]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeader
         eyebrow="监控与控制 / 实时监控"
-        title="设备实时监控"
-        description="实时查看设备在线状态、功率、电压、电流、温度与最后通信时间。"
-        actions={<Button variant="outline" onClick={() => toast.success('遥测数据已刷新')}><RefreshCw className="size-4" />刷新遥测</Button>}
+        title="设备实时监控与电子地图"
+        description="基于路网电子地图全景呈现路灯运行工况，支持滚轮缩放、拖拽浏览，点击任意灯杆点位即时调取遥测曲线与调光控制。"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh} className="h-8 gap-1.5 text-xs">
+              <RefreshCw className="size-3.5" />刷新遥测
+            </Button>
+          </div>
+        }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="在线设备" value="5,411" unit="台" trend={0.12} trendLabel="近 5 分钟" icon={Wifi} tone="green" />
-        <StatCard label="实时功率" value="184.6" unit="kW" trendLabel="负载率 57.6%" icon={Zap} tone="blue" />
-        <StatCard label="平均温度" value="34.6" unit="°C" trend={1.2} trendLabel="较昨日同时段" icon={Thermometer} tone="amber" />
-        <StatCard label="遥测上报" value="12.8" unit="万/小时" trendLabel="消息延迟 86 ms" icon={Activity} tone="cyan" />
+      {/* 顶部指标卡片 */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="全网在线设备" value="5,411" unit="台" trend={0.12} trendLabel="近 5 分钟" icon={Wifi} tone="green" />
+        <StatCard label="实时负载总功率" value="184.6" unit="kW" trendLabel="负载率 57.6%" icon={Zap} tone="blue" />
+        <StatCard label="平均运行温度" value="34.6" unit="°C" trend={1.2} trendLabel="较昨日同时段" icon={Thermometer} tone="amber" />
+        <StatCard label="告警异常点位" value="1" unit="处" trendLabel="DEV-0104 过温 48.9°C" icon={AlertTriangle} tone="cyan" />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
-        <SectionCard title="设备遥测" description="点击任意设备可使用右侧面板查看详细趋势" action={<div className="flex gap-2"><div className="relative"><Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索设备" className="h-8 w-40 pl-8 text-xs" /></div><Select value={status} onValueChange={setStatus}><SelectTrigger className="h-8 w-24 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">全部</SelectItem><SelectItem value="在线">在线</SelectItem><SelectItem value="调光">调光</SelectItem><SelectItem value="告警">告警</SelectItem><SelectItem value="离线">离线</SelectItem></SelectContent></Select></div>}>
-          <div className="max-h-[520px] overflow-auto rounded-xl border border-border/60">
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur"><TableRow><TableHead className="text-[10px]">设备</TableHead><TableHead className="text-[10px]">状态</TableHead><TableHead className="text-[10px]">功率</TableHead><TableHead className="text-[10px]">电压</TableHead><TableHead className="text-[10px]">温度</TableHead><TableHead className="text-[10px]">通信</TableHead></TableRow></TableHeader>
-              <TableBody>{filtered.map((device) => <TableRow key={device.id} className="hover:bg-brand-500/5"><TableCell><p className="text-xs font-medium">{device.name}</p><p className="mt-0.5 font-mono text-[9px] text-muted-foreground">{device.id}</p></TableCell><TableCell><StatusBadge status={device.status} /></TableCell><TableCell className="font-mono text-xs">{device.power} kW</TableCell><TableCell className="font-mono text-xs">{device.voltage} V</TableCell><TableCell className={`font-mono text-xs ${device.temperature > 45 ? 'text-amber-600 dark:text-amber-300' : ''}`}>{device.temperature} °C</TableCell><TableCell className="text-[10px] text-muted-foreground">{device.lastSeen}</TableCell></TableRow>)}</TableBody>
-            </Table>
-          </div>
-        </SectionCard>
+      {/* 核心分栏：左侧交互地图 + 右侧单灯遥测与控制 */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_390px]">
+        {/* 左侧：可缩放拖拽的监控电子地图 */}
+        <section className="app-surface rounded-2xl p-4 border border-border flex flex-col min-h-[580px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-brand-500 animate-pulse" />
+              <h2 className="text-sm font-semibold text-foreground">
+                {selectedStation} · 实时运行地图
+              </h2>
+              <div className="flex items-center gap-1.5 ml-2">
+                <Select value={selectedProject} onValueChange={setSelectedProject}>
+                  <SelectTrigger className="h-7 text-xs w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.name} className="text-xs">{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-        <div className="space-y-5">
-          <SectionCard title={selected?.name ?? '设备详情'} description={selected ? `${selected.id} · ${selected.station}` : ''}>
-            {selected && <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  ['调光比例', `${selected.dimming}%`, <BatteryCharging className="size-4" />],
-                  ['实时功率', `${selected.power} kW`, <Zap className="size-4" />],
-                  ['电压', `${selected.voltage} V`, <Activity className="size-4" />],
-                  ['温度', `${selected.temperature} °C`, <Thermometer className="size-4" />],
-                ].map(([label, value, icon]) => <div key={String(label)} className="rounded-xl bg-muted/50 p-3"><div className="flex items-center justify-between text-muted-foreground"><span className="text-[10px]">{label}</span>{icon}</div><p className="mt-2 font-mono text-lg font-semibold">{value}</p></div>)}
+                <Select value={selectedStation} onValueChange={setSelectedStation}>
+                  <SelectTrigger className="h-7 text-xs w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectStations.map((st) => (
+                      <SelectItem key={st.id} value={st.name} className="text-xs">{st.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div><div className="mb-2 flex justify-between text-[10px]"><span className="text-muted-foreground">负载率</span><span className="font-mono">{selected.dimming}%</span></div><MetricBar value={selected.dimming} /></div>
-            </div>}
-          </SectionCard>
-          <SectionCard title="温度趋势" description="最近 60 分钟">
-            <LineTrendChart points={telemetry} height={180} />
-          </SectionCard>
-          <SectionCard title="通信质量" description="当前设备链路状态">
-            <div className="space-y-3 text-xs">{[
-              ['网络协议', selected?.protocol ?? '-'],
-              ['信号强度', '-67 dBm'],
-              ['消息延迟', '86 ms'],
-              ['丢包率', '0.02%'],
-            ].map(([label, value]) => <div key={label} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0"><span className="text-muted-foreground">{label}</span><span className="font-mono text-foreground">{value}</span></div>)}</div>
-          </SectionCard>
-        </div>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              提示：滚轮缩放 · 鼠标拖拽 · 点击地图灯杆点位切换右侧遥测
+            </p>
+          </div>
+
+          <div className="flex-1 min-h-[480px]">
+            <InteractiveMapCanvas
+              points={points}
+              selectedPointId={selectedPointId}
+              stationName={selectedStation}
+              roadName="全线双向六车道"
+              onPointClick={handleSelectPoint}
+              className="h-full min-h-[480px]"
+              renderPointContent={(point, isSelected) => {
+                const isWarning = point.status === 'warning';
+                const isOffline = point.status === 'offline';
+                return (
+                  <div className="relative flex items-center justify-center">
+                    {/* 告警红色呼吸光环 */}
+                    {isWarning && (
+                      <span className="absolute size-10 rounded-full bg-rose-500/40 animate-ping" />
+                    )}
+                    {point.status === 'deployed' && (
+                      <span className="absolute size-7 rounded-full bg-emerald-400/20 animate-pulse" />
+                    )}
+
+                    <div
+                      className={cn(
+                        'flex size-8 items-center justify-center rounded-full border-2 transition-all duration-200 group-hover:scale-125 shadow-lg',
+                        isSelected ? 'scale-125 ring-4 ring-brand-400' : '',
+                        isWarning
+                          ? 'border-rose-400 bg-rose-600 text-white shadow-rose-500/60'
+                          : isOffline
+                          ? 'border-slate-500 bg-slate-700 text-slate-300'
+                          : point.status === 'dimmed'
+                          ? 'border-amber-300 bg-amber-500 text-slate-950'
+                          : 'border-emerald-300 bg-emerald-600 text-white shadow-emerald-500/40'
+                      )}
+                    >
+                      <Lightbulb className="size-4" />
+                    </div>
+
+                    {/* 浮动节点文字 */}
+                    <div
+                      className={cn(
+                        'absolute left-1/2 top-9 -translate-x-1/2 whitespace-nowrap rounded-md border px-2 py-0.5 text-[9px] font-mono shadow-md backdrop-blur',
+                        isSelected
+                          ? 'border-brand-400 bg-brand-950 text-brand-200 font-bold'
+                          : 'border-white/10 bg-slate-900/90 text-slate-200'
+                      )}
+                    >
+                      <span>{point.id}</span>
+                      <span className="ml-1 opacity-70">{point.dimming}%</span>
+                    </div>
+                  </div>
+                );
+              }}
+              legend={
+                <div className="rounded-xl border border-white/10 bg-slate-900/85 p-2.5 text-[10px] text-slate-300 backdrop-blur space-y-1 shadow-xl">
+                  <div className="font-semibold text-white mb-1 flex items-center gap-1">
+                    <Layers className="size-3 text-brand-400" />工况图例
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-emerald-400" />
+                    <span>正常照明运行 (100%~70%)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-amber-400" />
+                    <span>策略调光节能 (&lt;70%)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-rose-500 animate-pulse" />
+                    <span>故障告警节点 (超温/通信)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-slate-500" />
+                    <span>白天熄灯 / 设备离线</span>
+                  </div>
+                </div>
+              }
+            />
+          </div>
+        </section>
+
+        {/* 右侧：当前选中灯杆的遥测与快捷调光控制 */}
+        <section className="app-surface rounded-2xl p-4 border border-border flex flex-col justify-between space-y-4">
+          <div className="space-y-4">
+            {/* 节点头部与状态 */}
+            <div className="border-b border-border/80 pb-3">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-sm font-bold text-foreground">{activePoint.id}</span>
+                <StatusBadge
+                  status={
+                    activePoint.status === 'warning'
+                      ? '主要告警'
+                      : activePoint.status === 'offline'
+                      ? '离线'
+                      : '正常运行'
+                  }
+                />
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{activePoint.label}</p>
+              <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
+                <Badge variant="outline" className="text-[9px] bg-muted">{activePoint.deviceType}</Badge>
+                <span>回路: {activePoint.circuit}</span>
+              </div>
+            </div>
+
+            {/* 四项核心遥测指标 */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-xl border border-border bg-muted/30 p-2.5">
+                <div className="flex items-center justify-between text-muted-foreground text-[10px]">
+                  <span>实时功率</span>
+                  <Zap className="size-3 text-brand-600" />
+                </div>
+                <p className="mt-1 font-mono text-base font-semibold text-foreground">{activePoint.power} kW</p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-muted/30 p-2.5">
+                <div className="flex items-center justify-between text-muted-foreground text-[10px]">
+                  <span>工作电压</span>
+                  <Activity className="size-3 text-sky-600" />
+                </div>
+                <p className="mt-1 font-mono text-base font-semibold text-foreground">{activePoint.voltage} V</p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-muted/30 p-2.5">
+                <div className="flex items-center justify-between text-muted-foreground text-[10px]">
+                  <span>工作温度</span>
+                  <Thermometer className="size-3 text-amber-500" />
+                </div>
+                <p
+                  className={cn(
+                    'mt-1 font-mono text-base font-semibold',
+                    (activePoint.temperature ?? 0) > 45 ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'
+                  )}
+                >
+                  {activePoint.temperature} °C
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-muted/30 p-2.5">
+                <div className="flex items-center justify-between text-muted-foreground text-[10px]">
+                  <span>当前亮度</span>
+                  <BatteryCharging className="size-3 text-emerald-600" />
+                </div>
+                <p className="mt-1 font-mono text-base font-semibold text-foreground">{activePoint.dimming}%</p>
+              </div>
+            </div>
+
+            {/* 负载率进度条 */}
+            <div>
+              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                <span>负载率</span>
+                <span className="font-mono">{activePoint.dimming}%</span>
+              </div>
+              <MetricBar value={activePoint.dimming ?? 0} />
+            </div>
+
+            {/* 实时功率波动趋势图 */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-medium text-foreground">实时功率走势 (近1小时)</span>
+                <span className="font-mono text-[9px] text-muted-foreground">瓦特 (W)</span>
+              </div>
+              <div className="rounded-xl border border-border/80 bg-background/50 p-2">
+                <LineTrendChart points={telemetryData} height={120} />
+              </div>
+            </div>
+          </div>
+
+          {/* 底部快捷调光控制 */}
+          <div className="rounded-xl border border-brand-500/30 bg-brand-500/5 p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                <Sliders className="size-3.5 text-brand-600" />
+                单灯亮度调光
+              </span>
+              <span className="font-mono text-xs font-bold text-brand-600">{dimmingValue}%</span>
+            </div>
+
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={dimmingValue}
+              onChange={(e) => setDimmingValue(Number(e.target.value))}
+              className="w-full accent-brand-600 h-2 bg-muted rounded-lg cursor-pointer"
+            />
+
+            <div className="flex gap-1.5">
+              {[0, 30, 60, 85, 100].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setDimmingValue(preset)}
+                  className={cn(
+                    'flex-1 rounded-md py-1 text-[10px] font-mono border transition-colors',
+                    dimmingValue === preset
+                      ? 'border-brand-500 bg-brand-600 text-white font-medium'
+                      : 'border-border bg-background text-muted-foreground hover:bg-muted'
+                  )}
+                >
+                  {preset}%
+                </button>
+              ))}
+            </div>
+
+            <Button
+              size="sm"
+              onClick={handleApplyDimming}
+              className="w-full bg-brand-600 text-white hover:bg-brand-700 text-xs shadow-sm h-8"
+            >
+              <Sparkles className="mr-1.5 size-3.5" />
+              立即下发调光策略
+            </Button>
+          </div>
+        </section>
       </div>
     </div>
   );
