@@ -61,6 +61,8 @@ export interface Station {
   onlineRate: number;
   manager: string;
   status: string;
+  lnglat?: [number, number];
+  road?: string;
 }
 
 export interface DeviceType {

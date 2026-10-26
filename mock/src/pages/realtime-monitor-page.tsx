@@ -26,20 +26,40 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { projects, stations } from '@/data/mock-data';
 import { cn } from '@/lib/utils';
 
-// 监控路段的灯杆点位列表（包含正常亮灯、调光中、告警异常和离线状态）
-const MONITOR_POINTS: MapPoint[] = [
-  { id: 'DEV-0101', label: 'POLE-01 (环岛路K1+100)', x: 12, y: 35, status: 'deployed', deviceId: 'DEV-0101', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-01', circuit: 'A 回路-东段', power: 0.18, voltage: 220.4, temperature: 34.2, dimming: 85 },
-  { id: 'DEV-0102', label: 'POLE-02 (环岛路K1+250)', x: 26, y: 32, status: 'deployed', deviceId: 'DEV-0102', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-02', circuit: 'A 回路-东段', power: 0.18, voltage: 221.1, temperature: 35.0, dimming: 85 },
-  { id: 'DEV-0103', label: 'POLE-03 (环岛路K1+400)', x: 40, y: 41, status: 'dimmed', deviceId: 'DEV-0103', deviceName: '边缘智能照明网关', deviceType: '智能网关', pole: 'POLE-03', circuit: 'B 回路-中段', power: 0.12, voltage: 219.8, temperature: 38.6, dimming: 60 },
-  { id: 'DEV-0104', label: 'POLE-04 (环岛路K1+550)', x: 55, y: 49, status: 'warning', deviceId: 'DEV-0104', deviceName: '多回路驱动电源', deviceType: '驱动电源', pole: 'POLE-04', circuit: 'B 回路-中段', power: 0.35, voltage: 228.6, temperature: 48.9, dimming: 100 },
-  { id: 'DEV-0105', label: 'POLE-05 (环岛路K1+700)', x: 69, y: 43, status: 'deployed', deviceId: 'DEV-0105', deviceName: '全光谱LED智慧路灯', deviceType: '智慧灯具', pole: 'POLE-05', circuit: 'C 回路-西段', power: 0.15, voltage: 220.0, temperature: 33.5, dimming: 70 },
-  { id: 'DEV-0106', label: 'POLE-06 (环岛路K1+850)', x: 83, y: 56, status: 'offline', deviceId: 'DEV-0106', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-06', circuit: 'C 回路-西段', power: 0.0, voltage: 0.0, temperature: 22.0, dimming: 0 },
-];
+// 预置厦门示范路段监控点位（高崎空港、翔安大桥、翔安新机场）
+const STATION_MONITOR_POINTS: Record<string, MapPoint[]> = {
+  '高崎空港互通示范站': [
+    { id: 'DEV-0101', label: 'DEV-0101 (高崎迎宾道01#)', lnglat: [118.1315, 24.5392], status: 'deployed', deviceId: 'DEV-0101', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-01', circuit: 'A 回路-迎宾段', power: 0.18, voltage: 220.4, temperature: 34.2, dimming: 85 },
+    { id: 'DEV-0102', label: 'DEV-0102 (枋钟路立交02#)', lnglat: [118.1342, 24.5388], status: 'deployed', deviceId: 'DEV-0102', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-02', circuit: 'A 回路-迎宾段', power: 0.18, voltage: 221.1, temperature: 35.0, dimming: 85 },
+    { id: 'DEV-0103', label: 'DEV-0103 (T4航站匝道03#)', lnglat: [118.1378, 24.5381], status: 'dimmed', deviceId: 'DEV-0103', deviceName: '边缘智能照明网关', deviceType: '智能网关', pole: 'POLE-03', circuit: 'B 回路-立交段', power: 0.12, voltage: 219.8, temperature: 38.6, dimming: 60 },
+    { id: 'DEV-0104', label: 'DEV-0104 (枋钟中段04#)', lnglat: [118.1412, 24.5375], status: 'warning', deviceId: 'DEV-0104', deviceName: '多回路驱动电源', deviceType: '驱动电源', pole: 'POLE-04', circuit: 'B 回路-立交段', power: 0.35, voltage: 228.6, temperature: 48.9, dimming: 100 },
+    { id: 'DEV-0105', label: 'DEV-0105 (环岛干线交汇05#)', lnglat: [118.1450, 24.5370], status: 'deployed', deviceId: 'DEV-0105', deviceName: '全光谱LED智慧路灯', deviceType: '智慧灯具', pole: 'POLE-05', circuit: 'C 回路-外围段', power: 0.15, voltage: 220.0, temperature: 33.5, dimming: 70 },
+    { id: 'DEV-0106', label: 'DEV-0106 (枋钟下穿06#)', lnglat: [118.1495, 24.5365], status: 'offline', deviceId: 'DEV-0106', deviceName: '智能路灯单灯控制器', deviceType: '单灯控制器', pole: 'POLE-06', circuit: 'C 回路-外围段', power: 0.0, voltage: 0.0, temperature: 22.0, dimming: 0 },
+  ],
+  '翔安大桥跨海示范段': [
+    { id: 'DEV-0111', label: 'DEV-0111 (西桥头01#)', lnglat: [118.1620, 24.5420], status: 'deployed', deviceId: 'DEV-0111', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-11', circuit: 'A 回路-跨海段', power: 0.22, voltage: 222.0, temperature: 33.1, dimming: 95 },
+    { id: 'DEV-0112', label: 'DEV-0112 (刘五店航道桥02#)', lnglat: [118.1685, 24.5442], status: 'deployed', deviceId: 'DEV-0112', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯', pole: 'POLE-12', circuit: 'A 回路-跨海段', power: 0.20, voltage: 221.4, temperature: 34.5, dimming: 90 },
+    { id: 'DEV-0113', label: 'DEV-0113 (大桥中段03#)', lnglat: [118.1735, 24.5458], status: 'dimmed', deviceId: 'DEV-0113', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-13', circuit: 'B 回路-主航道', power: 0.14, voltage: 220.8, temperature: 35.0, dimming: 65 },
+    { id: 'DEV-0114', label: 'DEV-0114 (东引桥04#)', lnglat: [118.1788, 24.5472], status: 'deployed', deviceId: 'DEV-0114', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-14', circuit: 'B 回路-主航道', power: 0.18, voltage: 221.2, temperature: 33.8, dimming: 85 },
+  ],
+  '翔安新机场综合枢纽站': [
+    { id: 'DEV-0601', label: 'DEV-0601 (新机场进场01#)', lnglat: [118.3510, 24.5460], status: 'deployed', deviceId: 'DEV-0601', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-21', circuit: 'A 回路-主进场', power: 0.19, voltage: 222.4, temperature: 34.9, dimming: 88 },
+    { id: 'DEV-0602', label: 'DEV-0602 (GTC交通中心02#)', lnglat: [118.3552, 24.5445], status: 'deployed', deviceId: 'DEV-0602', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯', pole: 'POLE-22', circuit: 'A 回路-主进场', power: 0.17, voltage: 221.7, temperature: 36.1, dimming: 82 },
+    { id: 'DEV-0603', label: 'DEV-0603 (航站楼主落客03#)', lnglat: [118.3590, 24.5428], status: 'deployed', deviceId: 'DEV-0603', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆', pole: 'POLE-23', circuit: 'B 回路-航站区', power: 0.21, voltage: 223.1, temperature: 33.8, dimming: 90 },
+    { id: 'DEV-0604', label: 'DEV-0604 (空港保税环路04#)', lnglat: [118.3630, 24.5412], status: 'dimmed', deviceId: 'DEV-0604', deviceName: '景观氛围灯杆', deviceType: '景观氛围灯杆', pole: 'POLE-24', circuit: 'B 回路-航站区', power: 0.11, voltage: 220.5, temperature: 32.0, dimming: 50 },
+  ],
+};
+
+const MONITOR_POINTS: MapPoint[] = STATION_MONITOR_POINTS['高崎空港互通示范站'];
 
 export function RealtimeMonitorPage() {
   const [selectedProject, setSelectedProject] = useState(projects[0]?.name ?? '厦门智慧照明示范项目');
   const projectStations = useMemo(() => stations.filter((st) => st.project === selectedProject), [selectedProject]);
-  const [selectedStation, setSelectedStation] = useState(projectStations[0]?.name ?? '环岛南路示范段');
+  const [selectedStation, setSelectedStation] = useState(projectStations[0]?.name ?? '高崎空港互通示范站');
+
+  const currentStation = useMemo(() => {
+    return stations.find((s) => s.name === selectedStation) || projectStations[0] || stations[0];
+  }, [selectedStation, projectStations]);
 
   const [points, setPoints] = useState<MapPoint[]>(MONITOR_POINTS);
   const [selectedPointId, setSelectedPointId] = useState<string>(MONITOR_POINTS[0].id);
@@ -51,6 +71,33 @@ export function RealtimeMonitorPage() {
 
   // 当前调光滑块状态
   const [dimmingValue, setDimmingValue] = useState<number>(activePoint.dimming ?? 85);
+
+  const handleStationChange = (stName: string) => {
+    setSelectedStation(stName);
+    const matched = STATION_MONITOR_POINTS[stName];
+    if (matched && matched.length > 0) {
+      setPoints(matched);
+      setSelectedPointId(matched[0].id);
+      setDimmingValue(matched[0].dimming ?? 85);
+    } else {
+      const st = stations.find((s) => s.name === stName);
+      const baseLng = st?.lnglat?.[0] ?? 118.1355;
+      const baseLat = st?.lnglat?.[1] ?? 24.5386;
+      const fallbackList: MapPoint[] = [
+        { id: `DEV-${stName}-01`, label: `${stName} 01#`, lnglat: [baseLng, baseLat], status: 'deployed', dimming: 85, power: 0.18, voltage: 220.0, temperature: 34.0 },
+      ];
+      setPoints(fallbackList);
+      setSelectedPointId(fallbackList[0].id);
+      setDimmingValue(85);
+    }
+  };
+
+  const handleProjectChange = (projName: string) => {
+    setSelectedProject(projName);
+    const related = stations.filter((st) => st.project === projName);
+    const firstStation = related[0]?.name ?? '';
+    handleStationChange(firstStation);
+  };
 
   // 监听选中节点切换
   const handleSelectPoint = (point: MapPoint) => {
@@ -119,8 +166,8 @@ export function RealtimeMonitorPage() {
                 {selectedStation} · 实时运行地图
               </h2>
               <div className="flex items-center gap-1.5 ml-2">
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger className="h-7 text-xs w-36">
+                <Select value={selectedProject} onValueChange={handleProjectChange}>
+                  <SelectTrigger className="h-7 text-xs w-44">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -130,8 +177,8 @@ export function RealtimeMonitorPage() {
                   </SelectContent>
                 </Select>
 
-                <Select value={selectedStation} onValueChange={setSelectedStation}>
-                  <SelectTrigger className="h-7 text-xs w-36">
+                <Select value={selectedStation} onValueChange={handleStationChange}>
+                  <SelectTrigger className="h-7 text-xs w-44">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -144,7 +191,7 @@ export function RealtimeMonitorPage() {
             </div>
 
             <p className="text-[11px] text-muted-foreground">
-              提示：滚轮缩放 · 鼠标拖拽 · 点击地图灯杆点位切换右侧遥测
+              提示：高德 3D 真实地图联动 · 滚轮缩放 · 鼠标拖拽平移 · 点击地图路灯点位即时调取遥测
             </p>
           </div>
 
@@ -153,7 +200,9 @@ export function RealtimeMonitorPage() {
               points={points}
               selectedPointId={selectedPointId}
               stationName={selectedStation}
-              roadName="全线双向六车道"
+              roadName={currentStation?.road || '主干道路段'}
+              centerLnglat={currentStation?.lnglat || [118.1355, 24.5386]}
+              zoom={15}
               onPointClick={handleSelectPoint}
               className="h-full min-h-[480px]"
               renderPointContent={(point, isSelected) => {

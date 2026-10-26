@@ -42,15 +42,34 @@ interface PendingDevice {
   spec: string;
 }
 
+// 示范场站预设真实点位（高崎空港、翔安大桥、翔安新机场）
+const STATION_DEFAULT_POINTS: Record<string, MapPoint[]> = {
+  '高崎空港互通示范站': [
+    { id: 'POLE-01', label: '高崎迎宾道 #01', lnglat: [118.1315, 24.5392], circuit: 'A 回路-迎宾段', pole: 'POLE-01', status: 'deployed', deviceId: 'DEV-0101', deviceName: '智能单灯控制器', deviceType: '单灯控制器' },
+    { id: 'POLE-02', label: '枋钟路立交 #02', lnglat: [118.1342, 24.5388], circuit: 'A 回路-迎宾段', pole: 'POLE-02', status: 'deployed', deviceId: 'DEV-0102', deviceName: '智能单灯控制器', deviceType: '单灯控制器' },
+    { id: 'POLE-03', label: 'T4航站匝道 #03', lnglat: [118.1378, 24.5381], circuit: 'B 回路-立交段', pole: 'POLE-03', status: 'deployed', deviceId: 'DEV-0103', deviceName: '边缘智能照明网关', deviceType: '智能网关' },
+    { id: 'POLE-04', label: '枋钟路中段 #04', lnglat: [118.1412, 24.5375], circuit: 'B 回路-立交段', pole: 'POLE-04', status: 'pending' },
+    { id: 'POLE-05', label: '环岛干线交汇 #05', lnglat: [118.1450, 24.5370], circuit: 'C 回路-外围段', pole: 'POLE-05', status: 'pending' },
+    { id: 'POLE-06', label: '翔安大桥引桥 #06', lnglat: [118.1495, 24.5365], circuit: 'C 回路-外围段', pole: 'POLE-06', status: 'pending' },
+  ],
+  '翔安大桥跨海示范段': [
+    { id: 'POLE-11', label: '翔安大桥西桥头 #01', lnglat: [118.1620, 24.5420], circuit: 'A 回路-跨海段', pole: 'POLE-11', status: 'deployed', deviceId: 'DEV-0111', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
+    { id: 'POLE-12', label: '刘五店航道桥 #02', lnglat: [118.1685, 24.5442], circuit: 'A 回路-跨海段', pole: 'POLE-12', status: 'deployed', deviceId: 'DEV-0112', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯' },
+    { id: 'POLE-13', label: '翔安大桥中段 #03', lnglat: [118.1735, 24.5458], circuit: 'B 回路-主航道', pole: 'POLE-13', status: 'deployed', deviceId: 'DEV-0113', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
+    { id: 'POLE-14', label: '翔安大桥东引桥 #04', lnglat: [118.1788, 24.5472], circuit: 'B 回路-主航道', pole: 'POLE-14', status: 'pending' },
+    { id: 'POLE-15', label: '翔安大桥东互通 #05', lnglat: [118.1850, 24.5490], circuit: 'C 回路-登陆段', pole: 'POLE-15', status: 'pending' },
+  ],
+  '翔安新机场综合枢纽站': [
+    { id: 'POLE-21', label: '新机场进场大道 #01', lnglat: [118.3510, 24.5460], circuit: 'A 回路-主进场', pole: 'POLE-21', status: 'deployed', deviceId: 'DEV-0601', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
+    { id: 'POLE-22', label: 'GTC 交通中心高架 #02', lnglat: [118.3552, 24.5445], circuit: 'A 回路-主进场', pole: 'POLE-22', status: 'deployed', deviceId: 'DEV-0602', deviceName: 'LED 高杆灯', deviceType: 'LED 高杆灯' },
+    { id: 'POLE-23', label: '航站楼主落客区 #03', lnglat: [118.3590, 24.5428], circuit: 'B 回路-航站区', pole: 'POLE-23', status: 'deployed', deviceId: 'DEV-0603', deviceName: '多功能智慧杆', deviceType: '多功能智慧杆' },
+    { id: 'POLE-24', label: '空港保税环路 #04', lnglat: [118.3630, 24.5412], circuit: 'B 回路-航站区', pole: 'POLE-24', status: 'pending' },
+    { id: 'POLE-25', label: '大嶝环岛景观道 #05', lnglat: [118.3680, 24.5395], circuit: 'C 回路-环岛段', pole: 'POLE-25', status: 'pending' },
+  ],
+};
+
 // 初始点位
-const INITIAL_POINTS: MapPoint[] = [
-  { id: 'POLE-01', label: '环岛南路 #01', x: 12, y: 36, circuit: 'A 回路-东段', pole: 'POLE-01', status: 'deployed', deviceId: 'DEV-0101', deviceName: '智能单灯控制器', deviceType: '单灯控制器' },
-  { id: 'POLE-02', label: '环岛南路 #02', x: 26, y: 33, circuit: 'A 回路-东段', pole: 'POLE-02', status: 'deployed', deviceId: 'DEV-0102', deviceName: '智能单灯控制器', deviceType: '单灯控制器' },
-  { id: 'POLE-03', label: '环岛南路 #03', x: 40, y: 41, circuit: 'B 回路-中段', pole: 'POLE-03', status: 'deployed', deviceId: 'DEV-0103', deviceName: '边缘智能照明网关', deviceType: '智能网关' },
-  { id: 'POLE-04', label: '环岛南路 #04', x: 55, y: 49, circuit: 'B 回路-中段', pole: 'POLE-04', status: 'pending' },
-  { id: 'POLE-05', label: '环岛南路 #05', x: 69, y: 43, circuit: 'C 回路-西段', pole: 'POLE-05', status: 'pending' },
-  { id: 'POLE-06', label: '环岛南路 #06', x: 83, y: 56, circuit: 'C 回路-西段', pole: 'POLE-06', status: 'pending' },
-];
+const INITIAL_POINTS: MapPoint[] = STATION_DEFAULT_POINTS['高崎空港互通示范站'];
 
 // 待分配设备池
 const INITIAL_PENDING_DEVICES: PendingDevice[] = [
@@ -64,17 +83,39 @@ const INITIAL_PENDING_DEVICES: PendingDevice[] = [
 export function DeviceDeploymentPage() {
   const [selectedProject, setSelectedProject] = useState(projects[0]?.name ?? '厦门智慧照明示范项目');
   const projectStations = useMemo(() => stations.filter((st) => st.project === selectedProject), [selectedProject]);
-  const [selectedStation, setSelectedStation] = useState(projectStations[0]?.name ?? '环岛南路示范段');
+  const [selectedStation, setSelectedStation] = useState(projectStations[0]?.name ?? '高崎空港互通示范站');
 
-  const handleProjectChange = (projName: string) => {
-    setSelectedProject(projName);
-    const related = stations.filter((st) => st.project === projName);
-    setSelectedStation(related[0]?.name ?? '');
-  };
+  const currentStation = useMemo(() => {
+    return stations.find((st) => st.name === selectedStation) || projectStations[0] || stations[0];
+  }, [selectedStation, projectStations]);
 
   const [points, setPoints] = useState<MapPoint[]>(INITIAL_POINTS);
   const [pendingDevices, setPendingDevices] = useState<PendingDevice[]>(INITIAL_PENDING_DEVICES);
   const [deviceSearch, setDeviceSearch] = useState('');
+
+  const handleStationChange = (stName: string) => {
+    setSelectedStation(stName);
+    const matched = STATION_DEFAULT_POINTS[stName];
+    if (matched) {
+      setPoints(matched);
+    } else {
+      const st = stations.find((s) => s.name === stName);
+      const baseLng = st?.lnglat?.[0] ?? 118.1355;
+      const baseLat = st?.lnglat?.[1] ?? 24.5386;
+      setPoints([
+        { id: 'POLE-01', label: `${stName} #01`, lnglat: [Number((baseLng - 0.003).toFixed(4)), Number((baseLat + 0.001).toFixed(4))], circuit: 'A 回路', pole: 'POLE-01', status: 'deployed' },
+        { id: 'POLE-02', label: `${stName} #02`, lnglat: [baseLng, baseLat], circuit: 'A 回路', pole: 'POLE-02', status: 'deployed' },
+        { id: 'POLE-03', label: `${stName} #03`, lnglat: [Number((baseLng + 0.003).toFixed(4)), Number((baseLat - 0.001).toFixed(4))], circuit: 'B 回路', pole: 'POLE-03', status: 'pending' },
+      ]);
+    }
+  };
+
+  const handleProjectChange = (projName: string) => {
+    setSelectedProject(projName);
+    const related = stations.filter((st) => st.project === projName);
+    const firstStation = related[0]?.name ?? '';
+    handleStationChange(firstStation);
+  };
 
   // 侧拉分析抽屉开合状态
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -85,7 +126,7 @@ export function DeviceDeploymentPage() {
   const [dialogCircuit, setDialogCircuit] = useState('A 回路-东段');
 
   // 新建点位弹窗状态
-  const [newPointCoords, setNewPointCoords] = useState<{ x: number; y: number } | null>(null);
+  const [newPointCoords, setNewPointCoords] = useState<{ lnglat: [number, number]; x?: number; y?: number } | null>(null);
   const [newPointLabel, setNewPointLabel] = useState('');
 
   // 统计数值
@@ -104,7 +145,7 @@ export function DeviceDeploymentPage() {
   };
 
   // 触发地图空白处加点
-  const handleCanvasClick = (coords: { x: number; y: number }) => {
+  const handleCanvasClick = (coords: { lnglat: [number, number]; x?: number; y?: number }) => {
     const nextIndex = points.length + 1;
     setNewPointCoords(coords);
     setNewPointLabel(`POLE-${nextIndex < 10 ? '0' + nextIndex : nextIndex}`);
@@ -116,13 +157,14 @@ export function DeviceDeploymentPage() {
     const newPoint: MapPoint = {
       id: newPointLabel,
       label: `${selectedStation} #${newPointLabel.slice(-2)}`,
-      x: newPointCoords.x,
-      y: newPointCoords.y,
+      lnglat: newPointCoords.lnglat,
+      x: newPointCoords.x ?? 50,
+      y: newPointCoords.y ?? 50,
       circuit: 'A 回路-东段',
       status: 'pending',
     };
     setPoints((prev) => [...prev, newPoint]);
-    toast.success(`成功在地图上新建点位 [${newPointLabel}]，可点击完成设备部署！`);
+    toast.success(`成功在真实 GPS 坐标 [${newPointCoords.lnglat[0]}, ${newPointCoords.lnglat[1]}] 新建点位 [${newPointLabel}]！`);
     setNewPointCoords(null);
   };
 
@@ -271,7 +313,7 @@ export function DeviceDeploymentPage() {
 
               <div>
                 <label className="mb-1 block text-[10px] text-muted-foreground">运营场站</label>
-                <Select value={selectedStation} onValueChange={setSelectedStation}>
+                <Select value={selectedStation} onValueChange={handleStationChange}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="选择场站" />
                   </SelectTrigger>
@@ -389,9 +431,12 @@ export function DeviceDeploymentPage() {
             <InteractiveMapCanvas
               points={points}
               stationName={selectedStation}
-              roadName="双向六车道示范干道"
+              roadName={currentStation?.road || '主干道路段'}
+              centerLnglat={currentStation?.lnglat || [118.1355, 24.5386]}
+              zoom={15}
               onPointClick={handlePointClick}
               onCanvasClick={handleCanvasClick}
+              enableAddMode
               className="h-full min-h-[520px]"
               legend={
                 <div className="rounded-xl border border-white/10 bg-slate-900/85 p-2.5 text-[10px] text-slate-300 backdrop-blur space-y-1 shadow-xl">
@@ -617,7 +662,7 @@ export function DeviceDeploymentPage() {
               在地图空白路段新建灯杆点位
             </DialogTitle>
             <DialogDescription>
-              当前坐标：X: {newPointCoords?.x}%, Y: {newPointCoords?.y}%。
+              真实 GPS 坐标：{newPointCoords?.lnglat ? `[经度 ${newPointCoords.lnglat[0]}, 纬度 ${newPointCoords.lnglat[1]}]` : ''}。
             </DialogDescription>
           </DialogHeader>
 
