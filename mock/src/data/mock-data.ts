@@ -22,11 +22,11 @@ export const projects: Project[] = [
 ];
 
 export const stations: Station[] = [
-  { id: 'ST-001', name: '高崎空港互通示范站', project: '厦门智慧照明示范项目', address: '湖里区枋钟路 / 环岛干线交汇段（高崎 T3/T4 枢纽）', devices: 960, onlineRate: 99.88, manager: '叶文来', status: '在线', lnglat: [118.1355, 24.5386], road: '枋钟路立交与迎宾高架' },
-  { id: 'ST-002', name: '翔安大桥跨海示范段', project: '厦门智慧照明示范项目', address: '厦门第二东通道 · 翔安大桥海上主桥段（刘五店航道）', devices: 480, onlineRate: 99.75, manager: '陈明远', status: '在线', lnglat: [118.1720, 24.5450], road: '翔安大桥跨海快速路' },
-  { id: 'ST-003', name: '翔安新机场综合枢纽站', project: '翔安机场片区智慧灯杆项目', address: '翔安区大嶝岛新机场航站区交通枢纽 GTC', devices: 1240, onlineRate: 99.52, manager: '苏子墨', status: '在线', lnglat: [118.3580, 24.5430], road: '机场快速路与航站区环路' },
-  { id: 'ST-004', name: '环岛南路示范段', project: '厦门智慧照明示范项目', address: '思明区环岛南路 01-08 号路段', devices: 820, onlineRate: 99.92, manager: '叶文来', status: '在线', lnglat: [118.1280, 24.4290], road: '环岛南路景观大道' },
-  { id: 'ST-005', name: '演武大桥桥面', project: '厦门智慧照明示范项目', address: '思明区演武大桥匝道', devices: 264, onlineRate: 99.61, manager: '陈明远', status: '在线', lnglat: [118.0820, 24.4370], road: '演武大桥临海段' },
+  { id: 'ST-001', name: '高崎空港互通示范站', project: '厦门智慧照明示范项目', address: '湖里区枋钟路 / 迎宾高架枢纽段', devices: 960, onlineRate: 99.88, manager: '叶文来', status: '在线', lnglat: [118.142341, 24.529872], road: '枋钟路双向主干道及迎宾段' },
+  { id: 'ST-002', name: '翔安大桥跨海示范段', project: '厦门智慧照明示范项目', address: '厦门第二东通道 · 翔安大桥海上主桥段（刘五店航道）', devices: 480, onlineRate: 99.75, manager: '陈明远', status: '在线', lnglat: [118.181881, 24.56192], road: '翔安大桥跨海主线桥面' },
+  { id: 'ST-003', name: '翔安新机场综合枢纽站', project: '翔安机场片区智慧灯杆项目', address: '翔安区大嶝岛新机场航站区交通枢纽 GTC', devices: 1240, onlineRate: 99.52, manager: '苏子墨', status: '在线', lnglat: [118.358204, 24.543799], road: '大嶝岛机场快速路主线' },
+  { id: 'ST-004', name: '环岛南路示范段', project: '厦门智慧照明示范项目', address: '思明区环岛南路（曾厝垵-音乐广场海滨段）', devices: 820, onlineRate: 99.92, manager: '叶文来', status: '在线', lnglat: [118.132301, 24.423599], road: '环岛南路海滨景观道' },
+  { id: 'ST-005', name: '演武大桥桥面', project: '厦门智慧照明示范项目', address: '思明区演武大桥主线（沙坡尾-双子塔观海段）', devices: 264, onlineRate: 99.61, manager: '陈明远', status: '在线', lnglat: [118.090756, 24.440976], road: '演武大桥观海主线' },
   { id: 'ST-006', name: '同安产业园东区', project: '同安产业园智慧灯杆项目', address: '同安区集成路东段', devices: 486, onlineRate: 98.84, manager: '林晓峰', status: '在线', lnglat: [118.1630, 24.7210], road: '集成路与同盛北路' },
   { id: 'ST-007', name: '湖里大道 A 段', project: '湖里区道路照明改造项目', address: '湖里区湖里大道 A1-A18', devices: 618, onlineRate: 97.52, manager: '周启航', status: '调试', lnglat: [118.1120, 24.5150], road: '湖里大道' },
   { id: 'ST-008', name: '翔安机场快速路', project: '翔安机场片区智慧灯杆项目', address: '翔安区机场快速路北段', devices: 540, onlineRate: 98.46, manager: '苏子墨', status: '在线', lnglat: [118.3240, 24.5680], road: '机场快速路北段' },

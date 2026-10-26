@@ -85,8 +85,8 @@ export function InteractiveMapCanvas({
   renderPointContent,
   stationName = '高崎空港互通示范站',
   roadName = '枋钟路立交与迎宾高架',
-  centerLnglat = [118.1355, 24.5386],
-  zoom = 15,
+  centerLnglat = [118.142341, 24.529872],
+  zoom = 16.5,
   legend,
   enableAddMode = false,
   className,
@@ -97,10 +97,9 @@ export function InteractiveMapCanvas({
   const aMapRef = useRef<any>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
-  const polylineRef = useRef<any>(null);
   const satelliteLayerRef = useRef<any>(null);
 
-  // 控制状态：默认启用卫星或深蓝矢量，以及 3D 倾角
+  // 控制状态：默认启用深蓝科技矢量，以及 3D 倾角
   const [isMapReady, setIsMapReady] = useState(false);
   const [is3D, setIs3D] = useState(true);
   const [isSatellite, setIsSatellite] = useState(false);
@@ -120,7 +119,7 @@ export function InteractiveMapCanvas({
     () => localStorage.getItem('TOPSTAR_AMAP_SECURITY') || DEFAULT_AMAP_SECURITY
   );
 
-  // 核心：路灯点位与回路光缆渲染函数
+  // 核心：路灯点位渲染函数（独立离散点位，严格贴合马路，无回路连线干预）
   const renderMarkersAndPolyline = () => {
     const map = mapInstanceRef.current;
     const AMap = aMapRef.current;
@@ -135,38 +134,9 @@ export function InteractiveMapCanvas({
     });
     markersRef.current = [];
 
-    // 清空现有回路 Polyline
-    if (polylineRef.current) {
-      try {
-        polylineRef.current.setMap(null);
-        map.remove(polylineRef.current);
-      } catch (e) {}
-      polylineRef.current = null;
-    }
-
     const validPoints = points.filter((p) => p.lnglat && p.lnglat.length === 2);
 
-    // 绘制回路沿线光缆 (Polyline)
-    if (validPoints.length > 1) {
-      const path = validPoints.map((p) => new AMap.LngLat(p.lnglat![0], p.lnglat![1]));
-      const polyline = new AMap.Polyline({
-        path: path,
-        isOutline: true,
-        outlineColor: '#0369a1',
-        borderWeight: 2,
-        strokeColor: '#38bdf8',
-        strokeOpacity: 0.9,
-        strokeWeight: 4,
-        strokeStyle: 'solid',
-        lineJoin: 'round',
-        lineCap: 'round',
-        zIndex: 50,
-      });
-      map.add(polyline);
-      polylineRef.current = polyline;
-    }
-
-    // 绘制沿线灯杆 Marker
+    // 绘制沿线灯杆 Marker（独立无连线，清爽呈现在沥青车道与路肩）
     validPoints.forEach((point) => {
       const isSelected = point.id === selectedPointId;
       const markerDiv = document.createElement('div');
@@ -212,7 +182,7 @@ export function InteractiveMapCanvas({
           <div class="relative flex items-center justify-center size-8 rounded-full border-2 ${bgClass} shadow-2xl backdrop-blur transition-all duration-200 group-hover:scale-125 ${
         isSelected ? 'ring-4 ring-brand-400 scale-125 shadow-[0_0_15px_rgba(56,189,248,0.9)]' : ''
       }">
-            <span class="text-sm leading-none">${icon}</span>
+        <span class="text-sm leading-none">${icon}</span>
           </div>
 
           <!-- 悬浮标签 -->
@@ -245,7 +215,8 @@ export function InteractiveMapCanvas({
     });
 
     if (markersRef.current.length > 0) {
-      map.setFitView(markersRef.current, false, [70, 70, 70, 70], 16);
+      // 更加放大视角：自适应时最高限制提升到 17.5 级（车道级精细呈现）
+      map.setFitView(markersRef.current, false, [50, 50, 50, 50], 17.5);
     }
   };
 
@@ -373,11 +344,11 @@ export function InteractiveMapCanvas({
   useEffect(() => {
     if (mapInstanceRef.current && centerLnglat) {
       if (markersRef.current.length > 0) {
-        mapInstanceRef.current.setFitView(markersRef.current, false, [70, 70, 70, 70], 16);
+        mapInstanceRef.current.setFitView(markersRef.current, false, [50, 50, 50, 50], 17.5);
       } else {
-        mapInstanceRef.current.setZoomAndCenter(zoom, centerLnglat, false, 800);
+        mapInstanceRef.current.setZoomAndCenter(zoom || 16.5, centerLnglat, false, 800);
       }
-      setCurrentZoom(zoom);
+      setCurrentZoom(zoom || 16.5);
     }
   }, [centerLnglat, zoom]);
 
@@ -405,10 +376,15 @@ export function InteractiveMapCanvas({
     };
   }, [isAddMode]);
 
-  // 视角重置 (自适应全部点位)
+  // 视角重置 (自适应全部点位并放大至车道级)
   const handleReset = () => {
     if (mapInstanceRef.current) {
       renderMarkersAndPolyline();
+      if (markersRef.current.length > 0) {
+        mapInstanceRef.current.setFitView(markersRef.current, false, [50, 50, 50, 50], 17.5);
+      } else if (centerLnglat) {
+        mapInstanceRef.current.setZoomAndCenter(16.5, centerLnglat);
+      }
       mapInstanceRef.current.setPitch(is3D ? 35 : 0);
       toast.success('已自动居中校准路段全部点位视野');
     }
@@ -617,10 +593,6 @@ export function InteractiveMapCanvas({
             <div className="flex items-center gap-1.5">
               <span className="size-2 rounded-full border border-dashed border-slate-400" />
               <span className="text-[10px] text-slate-400">待部署点</span>
-            </div>
-            <div className="flex items-center gap-1.5 pl-1 border-l border-white/15">
-              <span className="h-0.5 w-3 bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.9)]" />
-              <span className="text-[10px] text-sky-300 font-mono">供电回路干线</span>
             </div>
           </>
         )}
