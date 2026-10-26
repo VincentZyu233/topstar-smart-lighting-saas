@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import L from 'leaflet';
 import AMapLoader from '@amap/amap-jsapi-loader';
 import {
   Compass,
@@ -15,6 +16,8 @@ import {
   Box,
   KeyRound,
   Check,
+  Map,
+  ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -71,7 +74,7 @@ interface InteractiveMapCanvasProps {
   className?: string;
 }
 
-// 默认内置高德演示 Key
+// 默认高德演示 Key
 const DEFAULT_AMAP_KEY = '2e44d3d78906be7dd626ad9ee0c38466';
 const DEFAULT_AMAP_SECURITY = '928230559f2e30f1d3c9ea5a9d821217';
 
@@ -90,18 +93,26 @@ export function InteractiveMapCanvas({
   className,
 }: InteractiveMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapDivRef = useRef<HTMLDivElement>(null);
+  const leafletDivRef = useRef<HTMLDivElement>(null);
+  const amapDivRef = useRef<HTMLDivElement>(null);
 
-  // 地图引擎状态：'loading' | 'amap' (高德真实 WebGL) | 'fallback' (高精暗夜矢量仿真)
-  const [mapEngine, setMapEngine] = useState<'loading' | 'amap' | 'fallback'>('loading');
+  // 双引擎模式：'leaflet' (免Key真实暗夜底图，默认) | 'amap' (高德官方 WebGL 3D)
+  const [mapEngine, setMapEngine] = useState<'leaflet' | 'amap'>('leaflet');
+
+  // Leaflet 实例与图层
+  const leafletMapRef = useRef<L.Map | null>(null);
+  const leafletMarkersRef = useRef<L.Marker[]>([]);
+  const leafletTileLayerRef = useRef<L.TileLayer | null>(null);
+  const [leafletLayerType, setLeafletLayerType] = useState<'dark' | 'vector' | 'satellite'>('dark');
+
+  // 高德 AMap 实例与图层
   const aMapRef = useRef<any>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-  const satelliteLayerRef = useRef<any>(null);
+  const aMapInstanceRef = useRef<any>(null);
+  const aMapMarkersRef = useRef<any[]>([]);
+  const aMapSatelliteLayerRef = useRef<any>(null);
+  const [isAmap3D, setIsAmap3D] = useState(true);
+  const [isAmapSatellite, setIsAmapSatellite] = useState(false);
 
-  // 控制状态
-  const [is3D, setIs3D] = useState(true);
-  const [isSatellite, setIsSatellite] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(zoom);
 
   // 插旗建点模式
@@ -112,67 +123,218 @@ export function InteractiveMapCanvas({
   // Key 配置对话框状态
   const [isKeyDialogOpen, setIsKeyDialogOpen] = useState(false);
   const [customKey, setCustomKey] = useState(
-    () => localStorage.getItem('TOPSTAR_AMAP_KEY') || DEFAULT_AMAP_KEY
+    () => localStorage.getItem('TOPSTAR_AMAP_KEY') || ''
   );
   const [customSecurity, setCustomSecurity] = useState(
-    () => localStorage.getItem('TOPSTAR_AMAP_SECURITY') || DEFAULT_AMAP_SECURITY
+    () => localStorage.getItem('TOPSTAR_AMAP_SECURITY') || ''
   );
 
-  // Fallback 仿真模式下的拖拽与缩放状态
-  const [fallbackScale, setFallbackScale] = useState(1);
-  const [fallbackTranslate, setFallbackTranslate] = useState({ x: 0, y: 0 });
-  const [isDraggingFallback, setIsDraggingFallback] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
-  const currentTranslateRef = useRef({ x: 0, y: 0 });
-  const dragDistanceRef = useRef(0);
-
-  // 1. 初始化高德地图 WebGL 2.0 实例
+  // 1. 初始化并挂载 Leaflet 免 Key 真实底图 (默认引擎)
   useEffect(() => {
-    let isMounted = true;
-    if (!mapDivRef.current) return;
+    if (!leafletDivRef.current) return;
+    if (leafletMapRef.current) return;
 
-    // 配置安全密钥
+    // Leaflet 坐标为 [纬度, 经度]
+    const map = L.map(leafletDivRef.current, {
+      center: [centerLnglat[1], centerLnglat[0]],
+      zoom: zoom,
+      zoomControl: false,
+      attributionControl: false,
+      scrollWheelZoom: true,
+      preferCanvas: true,
+    });
+
+    leafletMapRef.current = map;
+
+    // 添加默认 CartoDB Dark Matter 暗黑极客真实道路切片 (免Key全球秒开)
+    const darkTile = L.tileLayer(
+      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      {
+        subdomains: 'abcd',
+        maxZoom: 19,
+        crossOrigin: true,
+      }
+    );
+    darkTile.addTo(map);
+    leafletTileLayerRef.current = darkTile;
+
+    map.on('zoomend', () => {
+      setCurrentZoom(map.getZoom());
+    });
+
+    // 监听点击插旗建点
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      if (!isAddModeRef.current) return;
+      const lng = Number(e.latlng.lng.toFixed(6));
+      const lat = Number(e.latlng.lat.toFixed(6));
+      onCanvasClick?.({ lnglat: [lng, lat], x: 50, y: 50 });
+    });
+
+    return () => {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
+    };
+  }, []);
+
+  // 2. 切换 Leaflet 真实底图类型 (免Key暗夜 / 免Key高德路网 / 免Key卫星)
+  const switchLeafletLayer = (type: 'dark' | 'vector' | 'satellite') => {
+    if (!leafletMapRef.current) return;
+    const map = leafletMapRef.current;
+
+    if (leafletTileLayerRef.current) {
+      map.removeLayer(leafletTileLayerRef.current);
+    }
+
+    let url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    let subdomains: string | string[] = 'abcd';
+    let maxZoom = 19;
+
+    if (type === 'vector') {
+      // 高德免密直链矢量路网
+      url = 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}';
+      subdomains = '1234';
+      maxZoom = 18;
+    } else if (type === 'satellite') {
+      // 高德免密直链卫星遥感
+      url = 'https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}';
+      subdomains = '1234';
+      maxZoom = 18;
+    }
+
+    const newLayer = L.tileLayer(url, { subdomains, maxZoom, crossOrigin: true });
+    newLayer.addTo(map);
+    leafletTileLayerRef.current = newLayer;
+    setLeafletLayerType(type);
+    toast.success(`已切换为：${type === 'dark' ? 'CartoDB 极客暗夜图' : type === 'vector' ? '高德高清路网' : '高德卫星航拍图'}`);
+  };
+
+  // 3. 渲染 Leaflet Marker 点位
+  useEffect(() => {
+    if (!leafletMapRef.current) return;
+    const map = leafletMapRef.current;
+
+    // 清空现有 Marker
+    leafletMarkersRef.current.forEach((m) => m.remove());
+    leafletMarkersRef.current = [];
+
+    points.forEach((point) => {
+      if (!point.lnglat) return;
+      const isSelected = point.id === selectedPointId;
+
+      let bgClass = 'bg-brand-500/20 text-brand-300 border-brand-400';
+      let ringClass = 'bg-brand-400/40';
+      let icon = '📍';
+
+      if (point.status === 'deployed') {
+        bgClass = 'bg-emerald-500/30 text-emerald-300 border-emerald-400';
+        ringClass = 'bg-emerald-400/50';
+        icon = '💡';
+      } else if (point.status === 'dimmed') {
+        bgClass = 'bg-cyan-500/30 text-cyan-300 border-cyan-400';
+        ringClass = 'bg-cyan-400/50';
+        icon = '🔅';
+      } else if (point.status === 'warning') {
+        bgClass = 'bg-amber-500/30 text-amber-300 border-amber-400';
+        ringClass = 'bg-amber-400/50';
+        icon = '⚠️';
+      } else if (point.status === 'offline') {
+        bgClass = 'bg-rose-500/30 text-rose-300 border-rose-400';
+        ringClass = 'bg-rose-400/50';
+        icon = '🔌';
+      } else if (point.status === 'pending') {
+        bgClass = 'bg-slate-800/80 text-slate-300 border-slate-500 border-dashed';
+        ringClass = 'bg-slate-400/20';
+        icon = '➕';
+      }
+
+      const customHtml = `
+        <div class="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2 select-none group cursor-pointer">
+          <div class="absolute -inset-1.5 rounded-full ${ringClass} ${isSelected ? 'animate-ping' : ''}"></div>
+          <div class="relative flex items-center justify-center size-7 rounded-full border ${bgClass} shadow-xl backdrop-blur transition-transform duration-200 group-hover:scale-125 ${
+            isSelected ? 'ring-2 ring-brand-400 scale-125' : ''
+          }">
+            <span class="text-xs leading-none">${icon}</span>
+          </div>
+          <div class="absolute -bottom-5 whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] font-mono font-medium shadow pointer-events-none transition-all ${
+            isSelected
+              ? 'bg-brand-500 text-slate-950 font-bold scale-105'
+              : 'bg-slate-950/90 text-slate-200 border border-white/20'
+          }">
+            ${point.label}
+          </div>
+        </div>
+      `;
+
+      const divIcon = L.divIcon({
+        html: customHtml,
+        className: 'topstar-leaflet-marker',
+        iconSize: [30, 30],
+        iconAnchor: [0, 0],
+      });
+
+      const marker = L.marker([point.lnglat[1], point.lnglat[0]], { icon: divIcon });
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        onPointClick(point);
+      });
+
+      marker.addTo(map);
+      leafletMarkersRef.current.push(marker);
+    });
+  }, [points, selectedPointId, onPointClick]);
+
+  // 4. 监听场站切换中心坐标平滑飞入 (Leaflet)
+  useEffect(() => {
+    if (leafletMapRef.current && centerLnglat) {
+      leafletMapRef.current.flyTo([centerLnglat[1], centerLnglat[0]], zoom, { duration: 0.8 });
+      setCurrentZoom(zoom);
+    }
+  }, [centerLnglat, zoom]);
+
+  // 5. 初始化高德 AMap 实例（当且仅当切换至 amap 引擎时）
+  useEffect(() => {
+    if (mapEngine !== 'amap' || !amapDivRef.current) return;
+
+    let isMounted = true;
+    const effectiveKey = customKey || DEFAULT_AMAP_KEY;
+    const effectiveSecurity = customSecurity || DEFAULT_AMAP_SECURITY;
+
     window._AMapSecurityConfig = {
-      securityJsCode: customSecurity,
+      securityJsCode: effectiveSecurity,
     };
 
-    setMapEngine('loading');
-
     AMapLoader.load({
-      key: customKey,
+      key: effectiveKey,
       version: '2.0',
-      plugins: ['AMap.Scale', 'AMap.ToolBar', 'AMap.ControlBar'],
+      plugins: ['AMap.Scale', 'AMap.ToolBar'],
     })
       .then((AMap) => {
-        if (!isMounted || !mapDivRef.current) return;
+        if (!isMounted || !amapDivRef.current) return;
         aMapRef.current = AMap;
 
-        // 销毁旧实例
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.destroy();
-          mapInstanceRef.current = null;
+        if (aMapInstanceRef.current) {
+          aMapInstanceRef.current.destroy();
+          aMapInstanceRef.current = null;
         }
 
-        const map = new AMap.Map(mapDivRef.current, {
+        const map = new AMap.Map(amapDivRef.current, {
           viewMode: '3D',
-          pitch: is3D ? 35 : 0,
+          pitch: isAmap3D ? 35 : 0,
           zoom: currentZoom,
           center: centerLnglat,
-          mapStyle: 'amap://styles/darkblue', // 科技暗蓝主题
+          mapStyle: 'amap://styles/darkblue',
           features: ['bg', 'road', 'building', 'point'],
           showBuildingBlock: true,
-          showLabel: true,
         });
 
-        mapInstanceRef.current = map;
-        setMapEngine('amap');
+        aMapInstanceRef.current = map;
 
-        // 监听缩放级别变化
         map.on('zoomchange', () => {
           setCurrentZoom(Math.round(map.getZoom()));
         });
 
-        // 监听地图点击（插旗建点模式）
         map.on('click', (e: any) => {
           if (!isAddModeRef.current) return;
           const lng = Number(e.lnglat.getLng().toFixed(6));
@@ -181,22 +343,20 @@ export function InteractiveMapCanvas({
         });
       })
       .catch((err) => {
-        console.warn('高德在线地图加载受限，自动启用仿真底图模式:', err);
-        if (isMounted) {
-          setMapEngine('fallback');
-        }
+        console.warn('高德在线 SDK 异常，建议切回免 Key 模式:', err);
+        toast.error('高德鉴权拦截或无有效 Key，建议切换回【免 Key 暗夜真实底图】');
       });
 
     return () => {
       isMounted = false;
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.destroy();
-        mapInstanceRef.current = null;
+      if (aMapInstanceRef.current) {
+        aMapInstanceRef.current.destroy();
+        aMapInstanceRef.current = null;
       }
     };
-  }, [customKey, customSecurity]);
+  }, [mapEngine, customKey, customSecurity]);
 
-  // 2. 阻断滚轮穿透到外层页面：当鼠标在地图容器内时，仅缩放地图，页面完全不滚动
+  // 6. 阻断滚轮穿透到外层页面：在地图容器内部滚动时，只缩放地图，外层页面绝对不上下滚动
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -204,137 +364,24 @@ export function InteractiveMapCanvas({
     const handleWheelNative = (e: WheelEvent) => {
       // 停止向上冒泡并阻止默认滚动行为
       e.stopPropagation();
-
-      if (mapEngine === 'fallback') {
-        e.preventDefault();
-        const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
-        setFallbackScale((prev) => Math.min(3.0, Math.max(0.6, Number((prev * zoomFactor).toFixed(2)))));
-      }
     };
 
-    el.addEventListener('wheel', handleWheelNative, { passive: false });
+    el.addEventListener('wheel', handleWheelNative, { passive: true });
     return () => {
       el.removeEventListener('wheel', handleWheelNative);
     };
-  }, [mapEngine]);
+  }, []);
 
-  // 3. 监听中心坐标平滑飞入（换场站联动）
+  // 7. 监听插旗建点模式：更新光标
   useEffect(() => {
-    if (mapInstanceRef.current && centerLnglat) {
-      mapInstanceRef.current.setZoomAndCenter(zoom, centerLnglat, false, 800);
-      setCurrentZoom(zoom);
+    if (leafletMapRef.current) {
+      const container = leafletMapRef.current.getContainer();
+      container.style.cursor = isAddMode ? 'crosshair' : 'grab';
     }
-  }, [centerLnglat, zoom]);
-
-  // 4. 监听 3D 俯仰视角切换
-  useEffect(() => {
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.setPitch(is3D ? 35 : 0);
+    if (aMapInstanceRef.current) {
+      aMapInstanceRef.current.setDefaultCursor(isAddMode ? 'crosshair' : 'grab');
     }
-  }, [is3D]);
-
-  // 5. 监听卫星图层切换
-  useEffect(() => {
-    if (!mapInstanceRef.current || !aMapRef.current) return;
-    const map = mapInstanceRef.current;
-    const AMap = aMapRef.current;
-
-    if (isSatellite) {
-      if (!satelliteLayerRef.current) {
-        satelliteLayerRef.current = new AMap.TileLayer.Satellite();
-      }
-      map.add(satelliteLayerRef.current);
-    } else {
-      if (satelliteLayerRef.current) {
-        map.remove(satelliteLayerRef.current);
-      }
-    }
-  }, [isSatellite]);
-
-  // 6. 监听插旗建点模式切换：更新光标
-  useEffect(() => {
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.setDefaultCursor(isAddMode ? 'crosshair' : 'grab');
-    }
-  }, [isAddMode]);
-
-  // 7. 渲染真实高德 Marker 点位
-  useEffect(() => {
-    if (!mapInstanceRef.current || !aMapRef.current || mapEngine !== 'amap') return;
-    const map = mapInstanceRef.current;
-    const AMap = aMapRef.current;
-
-    // 清除既有标记
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-
-    points.forEach((point) => {
-      if (!point.lnglat) return;
-
-      const isSelected = point.id === selectedPointId;
-      const markerDiv = document.createElement('div');
-      markerDiv.className = 'topstar-amap-marker group relative cursor-pointer select-none';
-
-      let bgClass = 'bg-brand-500/20 text-brand-300 border-brand-400';
-      let ringClass = 'bg-brand-400/40';
-      let icon = '📍';
-
-      if (point.status === 'deployed') {
-        bgClass = 'bg-emerald-500/25 text-emerald-300 border-emerald-400';
-        ringClass = 'bg-emerald-400/50';
-        icon = '💡';
-      } else if (point.status === 'dimmed') {
-        bgClass = 'bg-cyan-500/25 text-cyan-300 border-cyan-400';
-        ringClass = 'bg-cyan-400/50';
-        icon = '🔅';
-      } else if (point.status === 'warning') {
-        bgClass = 'bg-amber-500/25 text-amber-300 border-amber-400';
-        ringClass = 'bg-amber-400/50';
-        icon = '⚠️';
-      } else if (point.status === 'offline') {
-        bgClass = 'bg-rose-500/25 text-rose-300 border-rose-400';
-        ringClass = 'bg-rose-400/50';
-        icon = '🔌';
-      } else if (point.status === 'pending') {
-        bgClass = 'bg-slate-700/60 text-slate-300 border-slate-500 border-dashed';
-        ringClass = 'bg-slate-400/20';
-        icon = '➕';
-      }
-
-      markerDiv.innerHTML = `
-        <div class="relative flex items-center justify-center">
-          <div class="absolute -inset-1 rounded-full ${ringClass} ${isSelected ? 'animate-ping' : ''}"></div>
-          <div class="relative flex items-center justify-center size-7 rounded-full border ${bgClass} shadow-xl backdrop-blur transition-transform duration-200 group-hover:scale-125 ${
-        isSelected ? 'ring-2 ring-brand-400 scale-125' : ''
-      }">
-            <span class="text-xs leading-none">${icon}</span>
-          </div>
-          <div class="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] font-mono font-medium shadow pointer-events-none transition-all ${
-            isSelected
-              ? 'bg-brand-500 text-slate-950 font-bold scale-105'
-              : 'bg-slate-900/90 text-slate-200 border border-white/20'
-          }">
-            ${point.label}
-          </div>
-        </div>
-      `;
-
-      markerDiv.onclick = (e) => {
-        e.stopPropagation();
-        onPointClick(point);
-      };
-
-      const marker = new AMap.Marker({
-        position: new AMap.LngLat(point.lnglat[0], point.lnglat[1]),
-        content: markerDiv,
-        offset: new AMap.Pixel(-14, -14),
-        title: point.label,
-      });
-
-      marker.setMap(map);
-      markersRef.current.push(marker);
-    });
-  }, [points, selectedPointId, mapEngine, onPointClick]);
+  }, [isAddMode, mapEngine]);
 
   // 8. Esc 快捷键与点击外部退出建点模式
   useEffect(() => {
@@ -362,29 +409,39 @@ export function InteractiveMapCanvas({
 
   // 视角重置
   const handleReset = () => {
-    if (mapInstanceRef.current && centerLnglat) {
-      mapInstanceRef.current.setZoomAndCenter(zoom, centerLnglat, false, 500);
-      mapInstanceRef.current.setPitch(is3D ? 35 : 0);
+    if (mapEngine === 'leaflet' && leafletMapRef.current) {
+      leafletMapRef.current.setView([centerLnglat[1], centerLnglat[0]], zoom);
       setCurrentZoom(zoom);
-    } else {
-      setFallbackScale(1);
-      setFallbackTranslate({ x: 0, y: 0 });
+    } else if (mapEngine === 'amap' && aMapInstanceRef.current) {
+      aMapInstanceRef.current.setZoomAndCenter(zoom, centerLnglat, false, 500);
+      aMapInstanceRef.current.setPitch(isAmap3D ? 35 : 0);
+      setCurrentZoom(zoom);
     }
   };
 
   const handleZoomIn = () => {
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.zoomIn();
-    } else {
-      setFallbackScale((s) => Math.min(3, s + 0.25));
+    if (mapEngine === 'leaflet' && leafletMapRef.current) {
+      leafletMapRef.current.zoomIn();
+    } else if (aMapInstanceRef.current) {
+      aMapInstanceRef.current.zoomIn();
     }
   };
 
   const handleZoomOut = () => {
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.zoomOut();
-    } else {
-      setFallbackScale((s) => Math.max(0.6, s - 0.25));
+    if (mapEngine === 'leaflet' && leafletMapRef.current) {
+      leafletMapRef.current.zoomOut();
+    } else if (aMapInstanceRef.current) {
+      aMapInstanceRef.current.zoomOut();
+    }
+  };
+
+  // 切换引擎
+  const handleToggleEngine = (newEngine: 'leaflet' | 'amap') => {
+    setMapEngine(newEngine);
+    if (newEngine === 'amap' && !customKey) {
+      toast.info('已切至高德官方模式。若底图出现黑屏，可点击右上角 ⚙️ 输入你申请的专属 Key');
+    } else if (newEngine === 'leaflet') {
+      toast.success('已切换为【Leaflet 100% 免 Key 真实暗夜底图】');
     }
   };
 
@@ -393,17 +450,10 @@ export function InteractiveMapCanvas({
     localStorage.setItem('TOPSTAR_AMAP_KEY', customKey.trim());
     localStorage.setItem('TOPSTAR_AMAP_SECURITY', customSecurity.trim());
     setIsKeyDialogOpen(false);
-    toast.success('高德地图 Key 与安全密钥已保存，正在重新加载地图底图！');
-    // 触发重新挂载
-    window.location.reload();
-  };
-
-  const handleResetDefaultKey = () => {
-    setCustomKey(DEFAULT_AMAP_KEY);
-    setCustomSecurity(DEFAULT_AMAP_SECURITY);
-    localStorage.removeItem('TOPSTAR_AMAP_KEY');
-    localStorage.removeItem('TOPSTAR_AMAP_SECURITY');
-    toast.info('已恢复默认预置演示 Key');
+    toast.success('高德 Key 保存成功！已自动生效。');
+    if (mapEngine !== 'amap') {
+      setMapEngine('amap');
+    }
   };
 
   return (
@@ -415,163 +465,38 @@ export function InteractiveMapCanvas({
         className
       )}
     >
-      {/* 真实高德地图容器 */}
+      {/* 引擎 1：Leaflet 免 Key 真实暗夜地图 (默认显示) */}
       <div
-        ref={mapDivRef}
-        id="topstar-amap-container"
+        ref={leafletDivRef}
+        id="topstar-leaflet-container"
         className={cn(
-          'absolute inset-0 size-full transition-opacity duration-500',
-          mapEngine === 'amap' ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'
+          'absolute inset-0 size-full transition-opacity duration-300',
+          mapEngine === 'leaflet' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
         )}
       />
 
-      {/* 优雅降级/备用仿真矢量底图 (在离线或无可用 Key 时提供 100% 完整的仿真体验) */}
-      {mapEngine !== 'amap' && (
-        <div
-          className="absolute inset-0 size-full overflow-hidden z-10"
-          onMouseDown={(e) => {
-            if (isAddMode || e.button !== 0) return;
-            setIsDraggingFallback(true);
-            dragStartRef.current = { x: e.clientX, y: e.clientY };
-            currentTranslateRef.current = { ...fallbackTranslate };
-            dragDistanceRef.current = 0;
-          }}
-          onMouseMove={(e) => {
-            if (!isDraggingFallback) return;
-            const dx = e.clientX - dragStartRef.current.x;
-            const dy = e.clientY - dragStartRef.current.y;
-            dragDistanceRef.current = Math.sqrt(dx * dx + dy * dy);
-            setFallbackTranslate({
-              x: currentTranslateRef.current.x + dx,
-              y: currentTranslateRef.current.y + dy,
-            });
-          }}
-          onMouseUp={() => setIsDraggingFallback(false)}
-          onClick={(e) => {
-            if (!isAddMode || !onCanvasClick) return;
-            if (dragDistanceRef.current > 6) return;
-            // 仿真模式根据点击计算虚拟经纬度
-            const rect = containerRef.current?.getBoundingClientRect();
-            if (!rect) return;
-            const clickX = (e.clientX - rect.left - fallbackTranslate.x) / fallbackScale;
-            const clickY = (e.clientY - rect.top - fallbackTranslate.y) / fallbackScale;
-            const lng = Number((centerLnglat[0] + (clickX - rect.width / 2) * 0.00015).toFixed(6));
-            const lat = Number((centerLnglat[1] - (clickY - rect.height / 2) * 0.00015).toFixed(6));
-            onCanvasClick({ lnglat: [lng, lat], x: 50, y: 50 });
-          }}
-        >
-          {/* 仿真底图网格与真实厦门高崎/翔安地标拓扑 */}
-          <div
-            className="absolute inset-0 size-full transition-transform duration-75"
-            style={{
-              transform: `translate(${fallbackTranslate.x}px, ${fallbackTranslate.y}px) scale(${fallbackScale})`,
-              transformOrigin: 'center center',
-            }}
-          >
-            {/* 网格背景 */}
-            <div
-              className="absolute -inset-[200%] opacity-20 pointer-events-none"
-              style={{
-                backgroundImage: `radial-gradient(circle at 1px 1px, rgba(34, 211, 238, 0.3) 1px, transparent 0)`,
-                backgroundSize: '36px 36px',
-              }}
-            />
+      {/* 引擎 2：高德 WebGL 3D 官方地图 */}
+      <div
+        ref={amapDivRef}
+        id="topstar-amap-container"
+        className={cn(
+          'absolute inset-0 size-full transition-opacity duration-300',
+          mapEngine === 'amap' ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
+        )}
+      />
 
-            {/* 仿真跑道与跨海大桥高架路径 */}
-            <svg className="absolute inset-0 size-full overflow-visible pointer-events-none" viewBox="0 0 1000 600">
-              <defs>
-                <linearGradient id="seaGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#082f49" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#0284c7" stopOpacity="0.1" />
-                </linearGradient>
-                <linearGradient id="bridgeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
-                  <stop offset="50%" stopColor="#818cf8" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.8" />
-                </linearGradient>
-              </defs>
-
-              {/* 厦门湾海域轮廓 */}
-              <path d="M 0 350 Q 300 280, 500 400 T 1000 320 L 1000 600 L 0 600 Z" fill="url(#seaGradient)" />
-
-              {/* 高崎国际机场 05/23 号跑道与航站区 */}
-              <g opacity="0.6">
-                <rect x="120" y="140" width="260" height="28" rx="4" fill="#1e293b" stroke="#38bdf8" strokeWidth="1.5" strokeDasharray="12 4" />
-                <text x="140" y="130" fill="#94a3b8" fontSize="11" fontFamily="monospace">XMN / 高崎国际机场 RUNWAY 05/23</text>
-                <rect x="240" y="180" width="120" height="35" rx="6" fill="#0f172a" stroke="#0284c7" strokeWidth="1" />
-                <text x="255" y="202" fill="#38bdf8" fontSize="10" fontWeight="bold">T3/T4 航站区</text>
-              </g>
-
-              {/* 翔安大桥跨海高架路线 */}
-              <path
-                d="M 320 220 C 450 250, 600 240, 780 200"
-                fill="none"
-                stroke="url(#bridgeGradient)"
-                strokeWidth="10"
-                strokeLinecap="round"
-              />
-              <path
-                d="M 320 220 C 450 250, 600 240, 780 200"
-                fill="none"
-                stroke="#ffffff"
-                strokeWidth="1.5"
-                strokeDasharray="8 6"
-              />
-              <text x="500" y="225" fill="#38bdf8" fontSize="12" fontWeight="bold" letterSpacing="1">
-                翔安大桥跨海主线 (第二东通道)
-              </text>
-
-              {/* 翔安新机场片区 */}
-              <g opacity="0.6">
-                <circle cx="820" cy="190" r="45" fill="#0c4a6e" stroke="#0ea5e9" strokeWidth="1.5" strokeDasharray="4 2" />
-                <text x="765" y="255" fill="#38bdf8" fontSize="11" fontWeight="bold">翔安新机场航站枢纽 GTC</text>
-              </g>
-            </svg>
-
-            {/* 仿真点位标记 */}
-            {points.map((pt, index) => {
-              const isSelected = pt.id === selectedPointId;
-              // 模拟分布
-              const posX = pt.x ?? 15 + index * 14;
-              const posY = pt.y ?? 35 + (index % 2) * 5;
-
-              return (
-                <div
-                  key={pt.id}
-                  style={{ left: `${posX}%`, top: `${posY}%` }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPointClick(pt);
-                  }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-20"
-                >
-                  <div className="relative flex items-center justify-center">
-                    <span className="size-6 rounded-full bg-cyan-500/30 border border-cyan-400 flex items-center justify-center text-xs shadow-lg group-hover:scale-125 transition-transform">
-                      💡
-                    </span>
-                    <span className="absolute -bottom-4 whitespace-nowrap text-[9px] font-mono bg-slate-900/90 text-cyan-300 px-1 rounded border border-cyan-500/30">
-                      ${pt.label}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* 顶部左侧：当前场站真实 GPS 信息条 */}
+      {/* 顶部左侧：当前场站真实 GPS 信息条与免Key认证徽章 */}
       <div className="map-hud-info absolute left-3 top-3 rounded-xl border border-white/10 bg-slate-900/85 px-3 py-2 backdrop-blur z-20 shadow-xl">
         <div className="flex items-center gap-2">
-          <span className="size-2 rounded-full bg-brand-400 animate-pulse" />
+          <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs font-semibold text-white">{stationName}</span>
           <span className="text-[10px] text-slate-400 font-mono">[{roadName}]</span>
         </div>
-        <div className="mt-1 flex items-center gap-2 text-[10px] font-mono text-slate-300">
-          <span>中心坐标: {centerLnglat[0]}, {centerLnglat[1]}</span>
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-mono text-slate-300">
+          <span>坐标: {centerLnglat[0]}, {centerLnglat[1]}</span>
           <span className="text-slate-600">|</span>
-          <span className="text-brand-300">
-            {mapEngine === 'amap' ? (isSatellite ? '高德高清遥感卫星图' : '高德矢量 3D WebGL') : '高精仿真暗夜走廊'}
+          <span className={cn('px-1.5 py-0.2 rounded font-semibold', mapEngine === 'leaflet' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-cyan-500/20 text-cyan-300')}>
+            {mapEngine === 'leaflet' ? '🌐 免Key真实暗夜底图 (在线)' : '🚀 高德官方 WebGL'}
           </span>
           <span className="text-slate-600">|</span>
           <span>缩放: {currentZoom} 级</span>
@@ -583,7 +508,7 @@ export function InteractiveMapCanvas({
         <div className="map-hud-banner pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full border border-amber-400/50 bg-amber-500/25 px-4 py-1.5 shadow-xl backdrop-blur animate-in fade-in slide-in-from-top-2">
           <span className="size-2 rounded-full bg-amber-400 animate-ping" />
           <span className="text-xs font-medium text-amber-200">
-            插旗建点模式已激活：点击道路任意位置获取 GPS 经纬度建点
+            插旗建点模式已激活：点击真实路面获取 GPS 经纬度
           </span>
           <span className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-amber-300">
             按 Esc 退出
@@ -591,7 +516,7 @@ export function InteractiveMapCanvas({
         </div>
       )}
 
-      {/* 右上角高德地图综合工具条 */}
+      {/* 右上角地图控制面板：双引擎切换、图层切换、缩放 */}
       <div className="map-control-btn absolute right-3 top-3 flex flex-col gap-1.5 rounded-xl border border-white/10 bg-slate-900/85 p-1.5 shadow-xl backdrop-blur z-20">
         {/* 插旗建点按钮 */}
         {(enableAddMode || onCanvasClick) && (
@@ -621,34 +546,91 @@ export function InteractiveMapCanvas({
           </Button>
         )}
 
-        {/* 卫星图 / 深蓝矢量切换 */}
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setIsSatellite(!isSatellite)}
-          title={isSatellite ? '切回科技深蓝矢量地图' : '切换至真实航拍卫星图'}
-          className={cn(
-            'h-7 px-2 text-[11px] font-medium transition-all gap-1',
-            isSatellite ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400/50' : 'text-slate-300 hover:bg-white/10'
-          )}
-        >
-          {isSatellite ? <Globe2 className="size-3 text-cyan-300" /> : <Satellite className="size-3 text-brand-300" />}
-          <span>{isSatellite ? '深蓝矢量' : '卫星影像'}</span>
-        </Button>
+        {/* 核心双引擎切换：Leaflet 免Key vs 高德官方 */}
+        <div className="grid grid-cols-2 gap-1 p-0.5 bg-black/40 rounded-lg border border-white/5">
+          <button
+            onClick={() => handleToggleEngine('leaflet')}
+            className={cn(
+              'py-1 text-[10px] font-medium rounded transition-all text-center',
+              mapEngine === 'leaflet'
+                ? 'bg-emerald-500 text-slate-950 font-bold shadow'
+                : 'text-slate-400 hover:text-white'
+            )}
+          >
+            免Key暗夜
+          </button>
+          <button
+            onClick={() => handleToggleEngine('amap')}
+            className={cn(
+              'py-1 text-[10px] font-medium rounded transition-all text-center',
+              mapEngine === 'amap'
+                ? 'bg-brand-500 text-slate-950 font-bold shadow'
+                : 'text-slate-400 hover:text-white'
+            )}
+          >
+            高德3D
+          </button>
+        </div>
 
-        {/* 3D 倾斜 / 2D 平面切换 */}
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setIs3D(!is3D)}
-          title={is3D ? '切至 2D 平面俯视' : '切至 3D 科技倾角'}
-          className="h-7 px-2 text-[11px] text-slate-300 hover:bg-white/10 gap-1"
-        >
-          <Box className={cn('size-3', is3D ? 'text-amber-400' : 'text-slate-400')} />
-          <span>{is3D ? '3D 倾角' : '2D 俯视'}</span>
-        </Button>
+        {/* 若处于 Leaflet 模式：可切换 暗夜极客 / 高德路网 / 卫星影像 */}
+        {mapEngine === 'leaflet' && (
+          <div className="flex flex-col gap-1 pt-1 border-t border-white/10">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => switchLeafletLayer(leafletLayerType === 'dark' ? 'vector' : leafletLayerType === 'vector' ? 'satellite' : 'dark')}
+              className="h-7 px-2 text-[11px] text-slate-300 hover:bg-white/10 gap-1 justify-between"
+              title="切换底图风格"
+            >
+              <span className="text-[10px] text-slate-400">图层:</span>
+              <span className="text-brand-300 font-mono text-[10px]">
+                {leafletLayerType === 'dark' ? '极客深蓝' : leafletLayerType === 'vector' ? '高德路网' : '卫星影像'}
+              </span>
+            </Button>
+          </div>
+        )}
 
-        {/* 基础控制按键组 */}
+        {/* 若处于高德模式：卫星切换与 3D 倾斜 */}
+        {mapEngine === 'amap' && (
+          <div className="flex flex-col gap-1 pt-1 border-t border-white/10">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                if (!aMapInstanceRef.current || !aMapRef.current) return;
+                const map = aMapInstanceRef.current;
+                const AMap = aMapRef.current;
+                if (!isAmapSatellite) {
+                  if (!aMapSatelliteLayerRef.current) aMapSatelliteLayerRef.current = new AMap.TileLayer.Satellite();
+                  map.add(aMapSatelliteLayerRef.current);
+                } else {
+                  if (aMapSatelliteLayerRef.current) map.remove(aMapSatelliteLayerRef.current);
+                }
+                setIsAmapSatellite(!isAmapSatellite);
+              }}
+              className="h-7 px-2 text-[11px] text-slate-300 hover:bg-white/10 gap-1"
+            >
+              <Satellite className="size-3 text-cyan-300" />
+              <span>{isAmapSatellite ? '深蓝矢量' : '高德卫星'}</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                if (aMapInstanceRef.current) {
+                  aMapInstanceRef.current.setPitch(isAmap3D ? 0 : 35);
+                  setIsAmap3D(!isAmap3D);
+                }
+              }}
+              className="h-7 px-2 text-[11px] text-slate-300 hover:bg-white/10 gap-1"
+            >
+              <Box className="size-3 text-amber-300" />
+              <span>{isAmap3D ? '2D 俯视' : '3D 倾角'}</span>
+            </Button>
+          </div>
+        )}
+
+        {/* 缩放、复位与设置按键组 */}
         <div className="flex items-center justify-between gap-1 pt-1 border-t border-white/10">
           <Button
             size="icon-xs"
@@ -681,7 +663,7 @@ export function InteractiveMapCanvas({
             size="icon-xs"
             variant="ghost"
             onClick={() => setIsKeyDialogOpen(true)}
-            title="配置高德地图 API Key"
+            title="配置专属高德 Key"
             className="text-slate-300 hover:bg-white/15 hover:text-amber-300"
           >
             <KeyRound className="size-3.5" />
@@ -690,7 +672,7 @@ export function InteractiveMapCanvas({
       </div>
 
       {/* 底部图例 */}
-      <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-slate-900/85 px-3 py-1.5 shadow-xl backdrop-blur z-20">
+      <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-2.5 rounded-xl border border-white/10 bg-slate-900/85 px-3 py-1.5 shadow-xl backdrop-blur z-20">
         {legend ?? (
           <>
             <span className="text-[10px] text-slate-400 font-medium">图例:</span>
@@ -724,10 +706,10 @@ export function InteractiveMapCanvas({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base text-white">
               <KeyRound className="size-4 text-brand-400" />
-              高德地图 Web JS API 2.0 配置
+              高德地图 API Key 配置
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-400">
-              系统当前已预置官方演示 Key。若需要切换为你自己在高德开放平台申请的专属 Web 端 Key，可在此填入。
+              若想体验高德原生 3D WebGL 引擎，请在此填入你在高德开放平台申请的专属 Web 端 Key 与安全密钥。默认模式推荐使用免 Key 暗夜真实底图，开箱即用。
             </DialogDescription>
           </DialogHeader>
 
@@ -737,7 +719,7 @@ export function InteractiveMapCanvas({
               <Input
                 value={customKey}
                 onChange={(e) => setCustomKey(e.target.value)}
-                placeholder="例如 2e44d3d78906be7dd626ad9ee0c38466"
+                placeholder="例如你申请的 32 位 Web 端 Key"
                 className="bg-slate-950 font-mono text-xs border-white/15"
               />
             </div>
@@ -746,18 +728,36 @@ export function InteractiveMapCanvas({
               <Input
                 value={customSecurity}
                 onChange={(e) => setCustomSecurity(e.target.value)}
-                placeholder="例如 928230559f2e30f1d3c9ea5a9d821217"
+                placeholder="例如你的安全密钥"
                 className="bg-slate-950 font-mono text-xs border-white/15"
               />
             </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              💡 注：高德 JSAPI 2.0 自 2021 年起要求 Key 配合安全密钥成对生效。配置将持久化保存在当前浏览器本地。
-            </p>
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-[11px] text-emerald-300 leading-relaxed space-y-1">
+              <p className="font-semibold flex items-center gap-1">
+                <ShieldCheck className="size-3.5" /> 申请贴士：
+              </p>
+              <p>1. 服务平台务必选【Web 端 (JS API)】；</p>
+              <p>2. 域名白名单请【直接留空】或填入当前域名；</p>
+              <p>3. 填入后将永久保存在本地浏览器中。</p>
+            </div>
           </div>
 
           <DialogFooter className="gap-2 sm:justify-between">
-            <Button variant="ghost" size="sm" onClick={handleResetDefaultKey} className="text-xs text-slate-400">
-              恢复默认演示 Key
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setCustomKey('');
+                setCustomSecurity('');
+                localStorage.removeItem('TOPSTAR_AMAP_KEY');
+                localStorage.removeItem('TOPSTAR_AMAP_SECURITY');
+                setMapEngine('leaflet');
+                setIsKeyDialogOpen(false);
+                toast.info('已清除 Key，并切回免 Key 模式');
+              }}
+              className="text-xs text-slate-400"
+            >
+              清除 Key 并用免Key模式
             </Button>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setIsKeyDialogOpen(false)} className="text-xs">
