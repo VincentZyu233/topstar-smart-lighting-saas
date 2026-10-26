@@ -1,5 +1,5 @@
-import { useRef, useState, type ReactNode } from 'react';
-import { Compass, Maximize2, Minus, Plus, RotateCcw } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Compass, Maximize2, Minus, MapPinPlus, Plus, RotateCcw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +29,7 @@ interface InteractiveMapCanvasProps {
   stationName?: string;
   roadName?: string;
   legend?: ReactNode;
+  enableAddMode?: boolean;
   className?: string;
 }
 
@@ -41,6 +42,7 @@ export function InteractiveMapCanvas({
   stationName = '示范路段',
   roadName = '主干道双向六车道',
   legend,
+  enableAddMode = false,
   className,
 }: InteractiveMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,27 +53,70 @@ export function InteractiveMapCanvas({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const currentTranslateRef = useRef({ x: 0, y: 0 });
+  const dragDistanceRef = useRef(0);
 
-  // 滚轮缩放
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
-    setScale((prev) => Math.min(3.0, Math.max(0.6, Number((prev * zoomFactor).toFixed(2)))));
-  };
+  // 插旗建点工具模式（Add Mode）
+  const [isAddMode, setIsAddMode] = useState(false);
 
-  // 鼠标拖拽平移
+  // 1. 原生非被动 wheel 监听器，彻底阻断外层页面上下滚动穿透
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handleWheelNative = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+      setScale((prev) => Math.min(3.0, Math.max(0.6, Number((prev * zoomFactor).toFixed(2)))));
+    };
+
+    el.addEventListener('wheel', handleWheelNative, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheelNative);
+    };
+  }, []);
+
+  // 2. Esc 快捷键与点击地图外部区域自动退出建点模式
+  useEffect(() => {
+    if (!isAddMode) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsAddMode(false);
+      }
+    };
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsAddMode(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isAddMode]);
+
+  // 鼠标拖拽平移逻辑（非建点模式下生效）
   const handleMouseDown = (e: React.MouseEvent) => {
-    // 仅响应鼠标主键（左键）
+    // 建点模式下不进行背景拖拽，专心点击放置
+    if (isAddMode) return;
     if (e.button !== 0) return;
     setIsDragging(true);
     dragStartRef.current = { x: e.clientX, y: e.clientY };
     currentTranslateRef.current = { ...translate };
+    dragDistanceRef.current = 0;
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
     const dx = e.clientX - dragStartRef.current.x;
     const dy = e.clientY - dragStartRef.current.y;
+    dragDistanceRef.current = Math.sqrt(dx * dx + dy * dy);
     setTranslate({
       x: currentTranslateRef.current.x + dx,
       y: currentTranslateRef.current.y + dy,
@@ -82,7 +127,7 @@ export function InteractiveMapCanvas({
     setIsDragging(false);
   };
 
-  // 复位居中
+  // 视口复位与缩放
   const handleReset = () => {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
@@ -98,10 +143,14 @@ export function InteractiveMapCanvas({
 
   // 点击画布空白处
   const handleContainerClick = (e: React.MouseEvent) => {
-    if (!onCanvasClick || !containerRef.current) return;
-    // 如果是拖拽操作结束引起的点击，则忽略
+    // 关键：只有在明确开启了建点模式（isAddMode === true）下，点击空白处才允许新建点位！
+    if (!isAddMode || !onCanvasClick || !containerRef.current) return;
+
+    // 如果刚进行了较大距离拖拽，不触发点击
+    if (dragDistanceRef.current > 6) return;
+
     const target = e.target as HTMLElement;
-    if (target.closest('.map-node-point') || target.closest('.map-control-btn')) {
+    if (target.closest('.map-node-point') || target.closest('.map-control-btn') || target.closest('.map-hud-banner')) {
       return;
     }
 
@@ -109,7 +158,6 @@ export function InteractiveMapCanvas({
     const rawX = e.clientX - rect.left - translate.x;
     const rawY = e.clientY - rect.top - translate.y;
 
-    // 转换为相对于以中心缩放前的 0~100 百分比
     const width = rect.width * scale;
     const height = rect.height * scale;
     const percentX = Math.round((rawX / width) * 100);
@@ -117,21 +165,25 @@ export function InteractiveMapCanvas({
 
     if (percentX >= 5 && percentX <= 95 && percentY >= 5 && percentY <= 95) {
       onCanvasClick({ x: percentX, y: percentY });
+      // 完成一次点位放置后，自动退出建点模式回到常规浏览
+      setIsAddMode(false);
     }
   };
 
   return (
     <div
       ref={containerRef}
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onClick={handleContainerClick}
+      style={{
+        overscrollBehavior: 'contain',
+      }}
       className={cn(
         'relative select-none overflow-hidden rounded-2xl border border-border/80 bg-slate-950 shadow-inner',
-        isDragging ? 'cursor-grabbing' : 'cursor-grab',
+        isAddMode ? 'cursor-crosshair' : isDragging ? 'cursor-grabbing' : 'cursor-grab',
         className
       )}
     >
@@ -270,47 +322,90 @@ export function InteractiveMapCanvas({
       </div>
 
       {/* 左上角路段标识 HUD */}
-      <div className="pointer-events-none absolute left-3 top-3 rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 backdrop-blur">
+      <div className="pointer-events-none absolute left-3 top-3 rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 backdrop-blur z-20">
         <div className="flex items-center gap-2">
           <span className="size-2 rounded-full bg-brand-400 animate-pulse" />
           <span className="text-xs font-semibold text-white">{stationName}</span>
           <span className="text-[10px] text-slate-400 font-mono">[{roadName}]</span>
         </div>
         <p className="mt-0.5 text-[9px] text-slate-400">
-          滚轮缩放画布 · 按住鼠标左键可拖拽平移 · 点击点位交互
+          滚轮仅在地图内缩放 · 按住鼠标左键可拖拽平移 · 外层页面互斥不滚动
         </p>
       </div>
 
-      {/* 右上角地图控制器 */}
+      {/* 顶部建点模式醒目横幅（仅在进入建点模式时显现） */}
+      {isAddMode && (
+        <div className="map-hud-banner pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full border border-amber-400/50 bg-amber-500/20 px-4 py-1.5 shadow-xl backdrop-blur animate-in fade-in slide-in-from-top-2">
+          <span className="size-2 rounded-full bg-amber-400 animate-ping" />
+          <span className="text-xs font-medium text-amber-200">
+            插旗建点模式已激活：点击道路任意位置确定点位
+          </span>
+          <span className="rounded bg-black/40 px-1.5 py-0.2 font-mono text-[10px] text-amber-300">
+            按 Esc 退出
+          </span>
+        </div>
+      )}
+
+      {/* 右上角地图控制面板与插旗建点切换工具 */}
       <div className="map-control-btn absolute right-3 top-3 flex flex-col gap-1.5 rounded-xl border border-white/10 bg-slate-900/85 p-1.5 shadow-xl backdrop-blur z-20">
-        <Button
-          size="icon-xs"
-          variant="ghost"
-          onClick={handleZoomIn}
-          title="放大 (或向上滚轮)"
-          className="text-slate-200 hover:bg-white/15 hover:text-white"
-        >
-          <Plus className="size-3.5" />
-        </Button>
-        <Button
-          size="icon-xs"
-          variant="ghost"
-          onClick={handleZoomOut}
-          title="缩小 (或向下滚轮)"
-          className="text-slate-200 hover:bg-white/15 hover:text-white"
-        >
-          <Minus className="size-3.5" />
-        </Button>
-        <Button
-          size="icon-xs"
-          variant="ghost"
-          onClick={handleReset}
-          title="重置视角 (100% 居中)"
-          className="text-slate-200 hover:bg-white/15 hover:text-white"
-        >
-          <RotateCcw className="size-3.5" />
-        </Button>
-        <div className="pt-1 border-t border-white/10 text-center font-mono text-[9px] text-brand-300">
+        {/* 插旗建点模式按钮（当启用建点功能时展示） */}
+        {(enableAddMode || onCanvasClick) && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setIsAddMode(!isAddMode)}
+            title={isAddMode ? '退出建点模式 (Esc)' : '激活插旗建点模式'}
+            className={cn(
+              'h-8 px-2 text-xs font-medium transition-all gap-1.5',
+              isAddMode
+                ? 'bg-amber-500 text-slate-950 hover:bg-amber-400 shadow-lg shadow-amber-500/30'
+                : 'text-slate-200 hover:bg-white/15 hover:text-white'
+            )}
+          >
+            {isAddMode ? (
+              <>
+                <X className="size-3.5" />
+                <span>退出建点</span>
+              </>
+            ) : (
+              <>
+                <MapPinPlus className="size-3.5 text-amber-400" />
+                <span className="text-[11px]">插旗建点</span>
+              </>
+            )}
+          </Button>
+        )}
+
+        <div className="flex items-center justify-between gap-1 pt-1 border-t border-white/10">
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={handleZoomIn}
+            title="放大 (滚轮向上)"
+            className="text-slate-200 hover:bg-white/15 hover:text-white"
+          >
+            <Plus className="size-3.5" />
+          </Button>
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={handleZoomOut}
+            title="缩小 (滚轮向下)"
+            className="text-slate-200 hover:bg-white/15 hover:text-white"
+          >
+            <Minus className="size-3.5" />
+          </Button>
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={handleReset}
+            title="重置视角 (100% 居中)"
+            className="text-slate-200 hover:bg-white/15 hover:text-white"
+          >
+            <RotateCcw className="size-3.5" />
+          </Button>
+        </div>
+        <div className="text-center font-mono text-[9px] text-brand-300">
           {Math.round(scale * 100)}%
         </div>
       </div>
