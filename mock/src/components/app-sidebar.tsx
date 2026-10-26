@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronsUpDown, LogOut, MapPin, ShieldCheck } from 'lucide-react';
+import { ChevronDown, LogOut, ShieldCheck } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import topstarLogo from '@/assets/topstar-logo.svg';
 import topstarLogoDark from '@/assets/topstar-logo-dark.svg';
@@ -25,6 +25,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { navigationGroups } from '@/navigation';
+import { useBrandConfig } from '@/lib/brand-config';
 import type { AuthSession, NavItem } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +35,7 @@ function isItemActive(pathname: string, item: NavItem) {
 }
 
 export function AppSidebar({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
+  const [brandConfig] = useBrandConfig();
   const { pathname } = useLocation();
   const { isMobile, setOpenMobile } = useSidebar();
   const activeParent = navigationGroups
@@ -68,21 +70,10 @@ export function AppSidebar({ session, onLogout }: { session: AuthSession; onLogo
             <img src={topstarLogo} alt="通士达" className="size-full object-contain" />
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-sm font-semibold tracking-tight text-white">通士达智慧照明</p>
-            <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.17em] text-slate-400">Smart Lighting SaaS</p>
+            <p className="truncate text-sm font-semibold tracking-tight text-white">{brandConfig.platformName}</p>
+            <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.17em] text-slate-400">{brandConfig.subName}</p>
           </div>
         </div>
-
-        <button className="mt-2 flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-left shadow-xs transition-colors hover:bg-white/10 group-data-[collapsible=icon]:hidden">
-          <span className="flex min-w-0 items-center gap-2.5">
-            <MapPin className="size-4 shrink-0 text-brand-400" />
-            <span className="min-w-0">
-              <span className="block text-[9px] font-medium uppercase tracking-wider text-slate-400">当前工作区</span>
-              <span className="mt-0.5 block truncate text-xs font-medium text-slate-200">厦门智慧照明</span>
-            </span>
-          </span>
-          <ChevronsUpDown className="size-3.5 text-slate-400" />
-        </button>
       </SidebarHeader>
 
       <SidebarContent className="px-1 py-2">

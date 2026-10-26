@@ -1,16 +1,160 @@
-import { BadgeCheck, Building2, ChartNoAxesCombined, Lightbulb, Mail, MapPin, Phone, Radar, ShieldCheck, Wrench } from 'lucide-react';
+import { useState } from 'react';
+import { BadgeCheck, Building2, ChartNoAxesCombined, Edit3, Lightbulb, Mail, MapPin, Phone, Radar, RotateCcw, Save, ShieldCheck, Wrench } from 'lucide-react';
+import { toast } from 'sonner';
 import topstarLogo from '@/assets/topstar-logo.svg';
 import topstarLogoDark from '@/assets/topstar-logo-dark.svg';
 import { PageHeader, SectionCard } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { brandCapabilities } from '@/data/mock-data';
+import { useBrandConfig, type BrandConfig } from '@/lib/brand-config';
 
 const iconMap = { lightbulb: Lightbulb, radar: Radar, wrench: Wrench, chart: ChartNoAxesCombined } as const;
 
 export function BrandPage() {
+  const [brandConfig, saveConfig, resetConfig] = useBrandConfig();
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState<BrandConfig>({ ...brandConfig });
+
+  const handleStartEdit = () => {
+    setFormData({ ...brandConfig });
+    setIsEditing(true);
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveConfig(formData);
+    setIsEditing(false);
+    toast.success('品牌配置已更新！登录页及侧边栏已联动同步生效');
+  };
+
+  const handleReset = () => {
+    const defaults = resetConfig();
+    setFormData({ ...defaults });
+    setIsEditing(false);
+    toast.success('已恢复为默认品牌配置');
+  };
+
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow="品牌信息" title="通士达智慧照明 SaaS 平台" description="以智慧照明为核心，连接设备、空间、数据与运营服务的城市级物联网 SaaS 平台。" />
+      <PageHeader
+        eyebrow="品牌信息与配置"
+        title={brandConfig.platformName}
+        description="以智慧照明为核心，连接设备、空间、数据与运营服务的城市级物联网 SaaS 平台。"
+        actions={
+          <div className="flex items-center gap-2">
+            {!isEditing ? (
+              <Button onClick={handleStartEdit} className="h-9 gap-1.5 bg-brand-600 text-white hover:bg-brand-700 shadow-sm">
+                <Edit3 className="size-4" />修改品牌信息
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => setIsEditing(false)} className="h-9">
+                取消编辑
+              </Button>
+            )}
+          </div>
+        }
+      />
+
+      {isEditing && (
+        <form onSubmit={handleSave} className="app-surface rounded-2xl border-2 border-brand-500/40 p-5 shadow-lg">
+          <div className="mb-4 flex items-center justify-between border-b border-border/80 pb-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <span className="size-2 rounded-full bg-brand-600" />
+                修改品牌与平台信息
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">修改后的平台名称、副标题及联系信息将自动联动更新至登录页、侧栏及全站各处。</p>
+            </div>
+            <Button type="button" variant="ghost" size="sm" onClick={handleReset} className="h-8 text-xs text-muted-foreground hover:text-rose-500">
+              <RotateCcw className="mr-1 size-3" />恢复默认
+            </Button>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-foreground">平台名称</label>
+              <Input
+                value={formData.platformName}
+                onChange={(e) => setFormData({ ...formData, platformName: e.target.value })}
+                placeholder="例如：通士达智慧照明SaaS平台"
+                className="h-9 text-xs"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-foreground">英文/副标题</label>
+              <Input
+                value={formData.subName}
+                onChange={(e) => setFormData({ ...formData, subName: e.target.value })}
+                placeholder="例如：Smart Lighting SaaS"
+                className="h-9 text-xs"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-foreground">Logo标识文本</label>
+              <Input
+                value={formData.logoText}
+                onChange={(e) => setFormData({ ...formData, logoText: e.target.value })}
+                placeholder="例如：TOPSTAR 通士达"
+                className="h-9 text-xs"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-foreground">所属公司名称</label>
+              <Input
+                value={formData.companyName}
+                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                placeholder="例如：通士达科技股份有限公司"
+                className="h-9 text-xs"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-foreground">服务热线</label>
+              <Input
+                value={formData.hotline}
+                onChange={(e) => setFormData({ ...formData, hotline: e.target.value })}
+                placeholder="例如：400-888-6688"
+                className="h-9 text-xs"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-foreground">商务邮箱</label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="例如：smart-lighting@topstar.com"
+                className="h-9 text-xs"
+                required
+              />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <label className="mb-1 block text-xs font-medium text-foreground">总部地址</label>
+              <Input
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="例如：福建省厦门市同安区通士达科技园"
+                className="h-9 text-xs"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="mt-5 flex justify-end gap-2 border-t border-border/80 pt-3">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditing(false)}>
+              取消
+            </Button>
+            <Button type="submit" size="sm" className="bg-brand-600 text-white hover:bg-brand-700 shadow-sm">
+              <Save className="mr-1 size-3.5" />保存并应用到全站
+            </Button>
+          </div>
+        </form>
+      )}
 
       <section className="relative overflow-hidden rounded-3xl border border-brand-400/25 bg-brand-700 p-6 text-white shadow-lg md:p-8">
         <div className="pointer-events-none absolute inset-0 bg-grid-pattern opacity-20" />
@@ -19,7 +163,7 @@ export function BrandPage() {
           <div>
             <div className="inline-flex rounded-2xl bg-white/95 px-5 py-3 shadow-xl"><img src={topstarLogo} alt="TOPSTAR 通士达" className="h-12 w-auto dark:hidden" /><img src={topstarLogoDark} alt="TOPSTAR 通士达" className="hidden h-12 w-auto dark:block" /></div>
             <h1 className="mt-6 max-w-3xl text-3xl font-semibold leading-tight tracking-tight md:text-4xl">让每一盏城市灯光，都成为可感知、可计算、可运营的数字化节点。</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-blue-50/85">通士达智慧照明 SaaS 平台面向城市道路、园区、桥梁和公共空间，提供设备接入、实时监控、策略调光、告警运维和能耗分析的一体化能力。</p>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-blue-50/85">{brandConfig.platformName} 面向城市道路、园区、桥梁和公共空间，提供设备接入、实时监控、策略调光、告警运维和能耗分析的一体化能力。</p>
             <div className="mt-6 flex flex-wrap gap-2">{['智慧照明', '空间感知', 'SaaS 运营', 'IoT 设备管理', '节能降碳'].map((tag) => <Badge key={tag} className="border-white/20 bg-white/12 text-white hover:bg-white/15">{tag}</Badge>)}</div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -59,10 +203,10 @@ export function BrandPage() {
         <SectionCard title="联系我们" description="通士达智慧照明事业部">
           <div className="space-y-3 text-xs">
             {[
-              { icon: Building2, label: '公司名称', value: '通士达科技股份有限公司' },
-              { icon: MapPin, label: '总部地址', value: '福建省厦门市同安区通士达科技园' },
-              { icon: Phone, label: '服务热线', value: '400-888-6688' },
-              { icon: Mail, label: '商务邮箱', value: 'smart-lighting@topstar.com' },
+              { icon: Building2, label: '公司名称', value: brandConfig.companyName },
+              { icon: MapPin, label: '总部地址', value: brandConfig.address },
+              { icon: Phone, label: '服务热线', value: brandConfig.hotline },
+              { icon: Mail, label: '商务邮箱', value: brandConfig.email },
             ].map((item) => {
               const Icon = item.icon;
               return <div key={item.label} className="flex items-start gap-3 rounded-xl bg-muted/45 p-3"><span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-300"><Icon className="size-4" /></span><span><span className="block text-[9px] text-muted-foreground">{item.label}</span><span className="mt-1 block font-medium text-foreground">{item.value}</span></span></div>;

@@ -15,6 +15,7 @@ import {
 import loginBackground from './assets/login-bg.webp';
 import topstarLogoDark from './assets/topstar-logo-dark.svg';
 import topstarLogoLight from './assets/topstar-logo.svg';
+import { useBrandConfig } from './lib/brand-config';
 
 type ThemeMode = 'dark' | 'light';
 
@@ -33,6 +34,7 @@ const THEME_OPTIONS: Array<{ id: ThemeMode; label: string; icon: typeof Moon }> 
 ];
 
 export default function LoginPage({ themeMode, onThemeChange, onLogin }: LoginPageProps) {
+  const [brandConfig] = useBrandConfig();
   const [username, setUsername] = useState(() => localStorage.getItem('topstar_remembered_user') || DEMO_USERNAME);
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
@@ -136,9 +138,9 @@ export default function LoginPage({ themeMode, onThemeChange, onLogin }: LoginPa
               <img src={topstarLogoLight} alt="TOPSTAR 通士达" className="h-10 w-auto shrink-0 dark:hidden" />
               <img src={topstarLogoDark} alt="TOPSTAR 通士达" className="hidden h-10 w-auto shrink-0 dark:block" />
               <div aria-hidden="true" className="h-8 w-px shrink-0 bg-brand-200 dark:bg-brand-500/25" />
-              <h1 className="max-w-[220px] text-left text-lg font-semibold leading-tight tracking-tight">通士达智慧照明SaaS平台</h1>
+              <h1 className="max-w-[220px] text-left text-lg font-semibold leading-tight tracking-tight">{brandConfig.platformName}</h1>
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">智慧照明与空间感知 SaaS 平台</p>
+            <p className="mt-3 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{brandConfig.subName}</p>
           </div>
 
           <form className="relative mt-7 space-y-4" onSubmit={handleSubmit}>

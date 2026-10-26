@@ -98,25 +98,24 @@ export const departments: Department[] = [
 ];
 
 export const roles: Role[] = [
-  { id: 'ROLE-001', name: '系统管理员', code: 'SUPER_ADMIN', users: 2, scope: '全平台', permissions: '全部权限', status: '启用' },
+  { id: 'ROLE-001', name: '品牌系统管理员', code: 'SUPER_ADMIN', users: 2, scope: '全平台', permissions: '全部权限', status: '启用' },
   { id: 'ROLE-002', name: '项目管理员', code: 'PROJECT_ADMIN', users: 8, scope: '所属项目', permissions: '项目、设备、告警管理', status: '启用' },
-  { id: 'ROLE-003', name: '运维工程师', code: 'OPS_ENGINEER', users: 26, scope: '所属场站', permissions: '监控、策略、工单处置', status: '启用' },
+  { id: 'ROLE-003', name: '运营管理员', code: 'OPS_ADMIN', users: 26, scope: '所属场站', permissions: '监控、策略、工单处置', status: '启用' },
   { id: 'ROLE-004', name: '数据分析员', code: 'DATA_ANALYST', users: 6, scope: '所属项目', permissions: '数据统计与导出', status: '启用' },
-  { id: 'ROLE-005', name: '访客', code: 'VIEWER', users: 12, scope: '指定看板', permissions: '只读查询', status: '启用' },
-  { id: 'ROLE-006', name: '临时调试员', code: 'TEMP_DEBUG', users: 3, scope: '指定设备', permissions: '调试与遥测查看', status: '停用' },
+  { id: 'ROLE-005', name: '维修工程师', code: 'MAINTENANCE_ENGINEER', users: 15, scope: '所属场站', permissions: '设备巡检、故障维修与核销', status: '启用' },
 ];
 
 export const users: UserAccount[] = [
-  { id: 'USR-001', name: '叶文来', account: 'admin', department: '智慧照明事业部', role: '系统管理员', phone: '138****1024', lastLogin: '2026-10-24 09:52', status: '启用' },
+  { id: 'USR-001', name: '叶文来', account: 'admin', department: '智慧照明事业部', role: '品牌系统管理员', phone: '138****1024', lastLogin: '2026-10-24 09:52', status: '启用' },
   { id: 'USR-002', name: '陈明远', account: 'chenmy', department: '产品研发中心', role: '项目管理员', phone: '139****5618', lastLogin: '2026-10-24 09:28', status: '启用' },
   { id: 'USR-003', name: '林晓峰', account: 'linxf', department: '项目实施部', role: '项目管理员', phone: '136****8721', lastLogin: '2026-10-24 09:05', status: '启用' },
-  { id: 'USR-004', name: '周启航', account: 'zhouqh', department: '运维服务部', role: '运维工程师', phone: '137****3625', lastLogin: '2026-10-24 08:47', status: '启用' },
+  { id: 'USR-004', name: '周启航', account: 'zhouqh', department: '运维服务部', role: '运营管理员', phone: '137****3625', lastLogin: '2026-10-24 08:47', status: '启用' },
   { id: 'USR-005', name: '许安然', account: 'xuanr', department: '数据运营组', role: '数据分析员', phone: '135****1148', lastLogin: '2026-10-23 18:32', status: '启用' },
   { id: 'USR-006', name: '苏子墨', account: 'suzm', department: '区域交付组', role: '项目管理员', phone: '188****7023', lastLogin: '2026-10-23 17:10', status: '启用' },
-  { id: 'USR-007', name: '黄嘉怡', account: 'huangjy', department: '运维服务部', role: '运维工程师', phone: '150****9120', lastLogin: '2026-10-23 16:55', status: '启用' },
+  { id: 'USR-007', name: '黄嘉怡', account: 'huangjy', department: '运维服务部', role: '维修工程师', phone: '150****9120', lastLogin: '2026-10-23 16:55', status: '启用' },
   { id: 'USR-008', name: '吴泽宇', account: 'wuzy', department: '产品研发中心', role: '数据分析员', phone: '151****4362', lastLogin: '2026-10-23 15:22', status: '启用' },
-  { id: 'USR-009', name: '郑思远', account: 'zhengsy', department: '项目实施部', role: '访客', phone: '186****5330', lastLogin: '2026-10-22 11:08', status: '停用' },
-  { id: 'USR-010', name: '李若溪', account: 'lirx', department: '智慧照明事业部', role: '访客', phone: '159****2416', lastLogin: '2026-10-21 09:40', status: '启用' },
+  { id: 'USR-009', name: '郑思远', account: 'zhengsy', department: '项目实施部', role: '维修工程师', phone: '186****5330', lastLogin: '2026-10-22 11:08', status: '启用' },
+  { id: 'USR-010', name: '李若溪', account: 'lirx', department: '智慧照明事业部', role: '维修工程师', phone: '159****2416', lastLogin: '2026-10-21 09:40', status: '启用' },
 ];
 
 export const alerts: AlertRecord[] = [
