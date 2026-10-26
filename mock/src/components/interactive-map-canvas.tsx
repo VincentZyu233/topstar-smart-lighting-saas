@@ -86,7 +86,7 @@ export function InteractiveMapCanvas({
   stationName = '高崎空港互通示范站',
   roadName = '枋钟路立交与迎宾高架',
   centerLnglat = [118.142341, 24.529872],
-  zoom = 16.5,
+  zoom = 17.5,
   legend,
   enableAddMode = false,
   className,
@@ -212,7 +212,7 @@ export function InteractiveMapCanvas({
 
     if (markersRef.current.length > 0) {
       // 更加放大视角：自适应时最高限制提升到 17.5 级（车道级精细呈现）
-      map.setFitView(markersRef.current, false, [50, 50, 50, 50], 17.5);
+      map.setFitView(markersRef.current, false, [50, 50, 50, 50], 18);
     }
   };
 
